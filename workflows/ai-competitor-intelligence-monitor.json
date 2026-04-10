@@ -1,0 +1,559 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c704501b-3940-4f7d-bdf9-36d461c67b70",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://zapier.com/pricing",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3e5f2f8e-aebb-4ba3-bce9-06a3f1cb8eea",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data;\n\n// Extract page title\nconst titleMatch = html.match(/<title>([^<]+)<\\/title>/);\nconst title = titleMatch ? titleMatch[1].trim() : \"Unknown\";\n\n// Extract pricing mentions\nconst priceMatches = [...html.matchAll(/\\$[\\d,]+(?:\\/mo|\\/month|\\/year|\\/yr)?/gi)];\nconst prices = [...new Set(priceMatches.map(m => m[0]))].slice(0, 10);\n\n// Extract key feature mentions\nconst featureKeywords = ['automation', 'workflow', 'integration', 'AI', 'free', 'enterprise', 'team', 'unlimited'];\nconst featuresFound = featureKeywords.filter(keyword => \n  html.toLowerCase().includes(keyword.toLowerCase())\n);\n\n// Extract meta description\nconst metaMatch = html.match(/<meta[^>]*name=\"description\"[^>]*content=\"([^\"]+)\"/i);\nconst metaDesc = metaMatch ? metaMatch[1] : \"\";\n\n// Get word count as proxy for content changes\nconst wordCount = html.split(/\\s+/).length;\n\nreturn [{\n  json: {\n    competitor: 'Zapier',\n    url: 'https://zapier.com/pricing',\n    pageTitle: title,\n    metaDescription: metaDesc,\n    pricesFound: prices,\n    featuresFound,\n    wordCount,\n    scrapedAt: new Date().toISOString(),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "32bfd4cf-b497-4730-922b-7fa6c7eb9d91",
+      "name": "Extract Key Info"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert competitive intelligence analyst.\n\nAnalyze this competitor data and provide intelligence insights.\n\nCompetitor: {{ $json.competitor }}\nURL: {{ $json.url }}\nPage Title: {{ $json.pageTitle }}\nMeta Description: {{ $json.metaDescription }}\nFeatures Found: {{ $json.featuresFound }}\nPrices Found: {{ $json.pricesFound }}\nWord Count: {{ $json.wordCount }}\nScraped At: {{ $json.scrapedAt }}\n\nBased on this data provide:\n1. Analysis of their current positioning\n2. Key features they are promoting\n3. Pricing strategy insights\n4. Competitive threats to our business\n5. Recommended actions for our team\n\nAlso determine if this requires urgent attention.\n\nRespond in this exact format:\nUrgentAlert: [Yes/No]\nChangesDetected: [summary of changes]\nPricingInfo: [pricing insights]\nAnalysis: [full competitive analysis]\nRecommendations: [specific action items]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "6e74296f-bb94-4a14-8f86-1bdc093d7283",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Extract Key Info').first().json;\n\nconst urgentMatch = aiOutput.match(/UrgentAlert:\\s*(.+)/);\nconst changesMatch = aiOutput.match(/ChangesDetected:\\s*(.+)/);\nconst pricingMatch = aiOutput.match(/PricingInfo:\\s*(.+)/);\nconst analysisMatch = aiOutput.match(/Analysis:\\s*([\\s\\S]+?)(?=Recommendations:)/);\nconst recommendationsMatch = aiOutput.match(/Recommendations:\\s*([\\s\\S]+)/);\n\nconst isUrgent = urgentMatch ? urgentMatch[1].trim().toLowerCase().includes('yes') : false;\n\nreturn [{\n  json: {\n    competitor: original.competitor,\n    url: original.url,\n    scrapedAt: original.scrapedAt,\n    featuresFound: original.featuresFound.join(', '),\n    wordCount: original.wordCount,\n    urgentAlert: isUrgent,\n    changesDetected: changesMatch ? changesMatch[1].trim() : \"\",\n    pricingInfo: pricingMatch ? pricingMatch[1].trim() : \"\",\n    analysis: analysisMatch ? analysisMatch[1].trim() : \"\",\n    recommendations: recommendationsMatch ? recommendationsMatch[1].trim() : \"\",\n    date: new Date().toDateString(),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "726cfa70-c7fa-46af-af7a-97404376e708",
+      "name": "CleanUp"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a05f81e7-21da-478f-87f7-47c705f2a30a",
+              "leftValue": "={{ $json.urgentAlert }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "8d8b3e0b-a31a-4111-9407-0977f716ffe7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=🚨 Urgent Competitor Alert - {{ $json.competitor }}",
+        "message": "=🚨 URGENT COMPETITOR ALERT\\n\\nCompetitor: {{ $json.competitor }}\\nURL: {{ $json.url }}\\nDate: {{ $json.date }}\\n\\nCHANGES DETECTED:\\n{{ $json.changesDetected }}\\n\\nPRICING INFO:\\n{{ $json.pricingInfo }}\\n\\nFULL ANALYSIS:\\n{{ $json.analysis }}\\n\\nRECOMMENDED ACTIONS:\\n{{ $json.recommendations }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        -96
+      ],
+      "id": "d331151a-7292-4e6b-935e-18967027b48d",
+      "name": "Create a draft",
+      "webhookId": "c7e358fa-7022-4c17-ac30-787f91cb06a7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=📊 Weekly Competitor Report - {{ $json.competitor }} - {{ $json.date }}",
+        "message": "=📊 Weekly Competitor Report - {{ $json.competitor }} - {{ $json.date }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        96
+      ],
+      "id": "c899eefb-72c7-4e28-b7bd-a7e66b391d0a",
+      "name": "Create a draft1",
+      "webhookId": "b1c25ba8-dc98-43c4-b8d3-dc8ccb7ac31f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('CleanUp').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      date: item.json.date,\n      competitor: item.json.competitor,\n      changesDetected: item.json.changesDetected,\n      pricingInfo: item.json.pricingInfo,\n      analysis: item.json.analysis,\n      alertSent: item.json.urgentAlert ? 'Yes' : 'No',\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        96
+      ],
+      "id": "f19aa753-734b-450f-bcea-9d1759dfaaf8",
+      "name": "CleanUp2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE",
+          "mode": "list",
+          "cachedResultName": "AI Competitor Intelligence Monitor - Intelligence Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Competitor": "={{ $json.competitor }}",
+            "Changes Detected": "={{ $json.changesDetected }}",
+            "Pricing Info": "={{ $json.pricingInfo }}",
+            "AI Analysis": "={{ $json.analysis }}",
+            "Alert Sent": "={{ $json.alertSent }}"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Competitor",
+              "displayName": "Competitor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Changes Detected",
+              "displayName": "Changes Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pricing Info",
+              "displayName": "Pricing Info",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Analysis",
+              "displayName": "AI Analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Alert Sent",
+              "displayName": "Alert Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        96
+      ],
+      "id": "34bd927c-84a0-4561-a91d-ab63b54c3cba",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE",
+          "mode": "list",
+          "cachedResultName": "AI Competitor Intelligence Monitor - Intelligence Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iG-UuLrUN8lIU3ct5L34YNAIzBxJEsL0tg8mkOkjKBE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Competitor": "={{ $json.competitor }}",
+            "Changes Detected": "={{ $json.changesDetected }}",
+            "Pricing Info": "={{ $json.pricingInfo }}",
+            "AI Analysis": "={{ $json.analysis }}",
+            "Alert Sent": "={{ $json.alertSent }}"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Competitor",
+              "displayName": "Competitor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Changes Detected",
+              "displayName": "Changes Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pricing Info",
+              "displayName": "Pricing Info",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Analysis",
+              "displayName": "AI Analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Alert Sent",
+              "displayName": "Alert Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        -96
+      ],
+      "id": "a1f23a45-57c2-4a52-964c-f55769bb0aa1",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('CleanUp').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      date: item.json.date,\n      competitor: item.json.competitor,\n      changesDetected: item.json.changesDetected,\n      pricingInfo: item.json.pricingInfo,\n      analysis: item.json.analysis,\n      alertSent: 'Yes',\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -96
+      ],
+      "id": "f9580cfe-b7e4-4a8e-a348-8add0f92db3b",
+      "name": "CleanUp3"
+    },
+    {
+      "parameters": {
+        "content": "🔍 AI Competitor Intelligence Monitor Workflow\n\nScrapes competitor websites every Monday, uses AI to \nanalyze positioning, pricing and feature changes, \nsends urgent alerts or weekly summaries automatically.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every Monday at 8am\n\n**Step 2**\n🌐 HTTP Request — Scrapes Zapier pricing page\n\n**Step 3**\n⚙️ Extract Key Info — Extracts features prices and content\n\n**Step 4**\n🤖 OpenAI — Analyzes competitor positioning and changes\n\n**Step 5**\n⚙️ CleanUp — Cleans and structures AI analysis output\n\n**Step 6**\n🔀 IF — Checks if urgent alert is needed\n\n**Step 7**\n✅ TRUE: Gmail — Sends urgent competitor alert draft\n\n**Step 8**\n✅ TRUE: Code in JavaScript — Prepares logging data\n\n**Step 9**\n✅ TRUE: Google Sheets — Logs intelligence report\n\n**Step 10**\n❌ FALSE: Gmail1 — Sends weekly intelligence summary\n\n**Step 11**\n❌ FALSE: Code in JavaScript1 — Prepares logging data\n\n**Step 12**\n❌ FALSE: Google Sheets1 — Logs intelligence report",
+        "height": 784,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -544,
+        -288
+      ],
+      "typeVersion": 1,
+      "id": "68e06376-8520-46a5-b048-02ecfad3811f",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Key Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Key Info": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "CleanUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CleanUp": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "CleanUp3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft1": {
+      "main": [
+        [
+          {
+            "node": "CleanUp2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CleanUp2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CleanUp3": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
