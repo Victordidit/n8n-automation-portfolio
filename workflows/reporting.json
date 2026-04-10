@@ -1,0 +1,221 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "50505713-7368-4e2d-be29-2e16560e38c1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "124TLalnLnT3WrAPjNHv-5yL_-L9jgKywqEp1uVQJU8M",
+          "mode": "list",
+          "cachedResultName": "AI-Powered Lead Generation & CRM Entry",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/124TLalnLnT3WrAPjNHv-5yL_-L9jgKywqEp1uVQJU8M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/124TLalnLnT3WrAPjNHv-5yL_-L9jgKywqEp1uVQJU8M/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "34abc911-9b8f-4d71-a4bc-b137ff78de5c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Extract all scores\nconst scores = items\n  .map(item => parseFloat(item.json['AI Score']))\n  .filter(score => !isNaN(score));\n\n// Calculate stats\nconst totalLeads = items.length;\nconst avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);\nconst highestScore = Math.max(...scores);\nconst lowestScore = Math.min(...scores);\n\n// Get top 3 leads\nconst topLeads = items\n  .filter(item => !isNaN(parseFloat(item.json['AI Score'])))\n  .sort((a, b) => parseFloat(b.json['AI Score']) - parseFloat(a.json['AI Score']))\n  .slice(0, 3)\n  .map(item => `${item.json['Company Name']} (Score: ${item.json['AI Score']})`)\n  .join(', ');\n\nreturn [{\n  json: {\n    totalLeads,\n    avgScore,\n    highestScore,\n    lowestScore,\n    topLeads,\n    reportDate: new Date().toDateString(),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b461afa6-fcd3-4379-887e-990c2a0ddca7",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional business analyst.\nWrite a clean and concise weekly lead generation report \nbased on the following data:\n\nReport Date: {{ $json.reportDate }}\nTotal Leads Scraped: {{ $json.totalLeads }}\nAverage AI Score: {{ $json.avgScore }}/10\nHighest Score: {{ $json.highestScore }}/10\nLowest Score: {{ $json.lowestScore }}/10\nTop 3 Leads: {{ $json.topLeads }}\n\nWrite the report in a professional email format with:\n- A subject line\n- An executive summary\n- Key highlights\n- A recommendation section\n- A professional sign off"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a4a3c25d-0fc0-4d52-bb86-72b42f695418",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst text = item.json.output?.[0]?.content?.[0]?.text || \"\";\n\nconst subjectMatch = text.match(/Subject:\\s*(.+)/);\nconst body = text.replace(/Subject:\\s*.+\\n/, \"\").trim();\n\nreturn [{\n  json: {\n    subject: subjectMatch ? subjectMatch[1].trim() : \"Weekly Lead Generation Report\",\n    body: body,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        16
+      ],
+      "id": "1e2a0872-a598-43f7-b54b-1e9163f33ed0",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        16
+      ],
+      "id": "7a93181a-1af7-4147-aa19-a92e52d8a142",
+      "name": "Create a draft",
+      "webhookId": "e28519f5-fb6c-4efc-9453-2364ed79ef41",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📊 Automated Reporting Dashboard Workflow\n\nPulls lead data from Google Sheets, calculates key \nstats, uses AI to write a professional report and \ndelivers it as a Gmail draft every Monday at 8am.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every Monday at 8am\n\n**Step 2**\n📊 Google Sheets — Pulls all leads data\n\n**Step 3**\n⚙️ Code in JavaScript — Calculates stats and averages\n\n**Step 4**\n🤖 OpenAI — Writes professional report summary\n\n**Step 5**\n⚙️ Code in JavaScript1 — Cleans report output\n\n**Step 6**\n📧 Gmail — Delivers report as Gmail draft",
+        "height": 480,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -448,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "10e61be8-0b8f-4957-8b8d-9b2fcb4f528b",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
