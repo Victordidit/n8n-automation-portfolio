@@ -1,5 +1,9 @@
 # 🤖 AI Lead Generation Workflow
 
+[**📂 View Workflow JSON**](./lead-gen.json)
+
+---# 🤖 AI Lead Generation Workflow
+
 ### Overview
 This automation serves as an autonomous lead scout. It scrapes raw business data, passes it through an AI scoring model to determine quality, and organizes the high-value results into a CRM-ready Google Sheet.
 
