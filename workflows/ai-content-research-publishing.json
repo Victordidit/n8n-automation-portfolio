@@ -1,0 +1,452 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5de16778-161a-4d4d-8109-0b57dd5ec400",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.feedburner.com/venturebeat/SZYF",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9f086781-e1fa-42de-8afa-44d436c1dc28",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data;\n\n// Extract all items\nconst itemMatches = [...data.matchAll(/<item>([\\s\\S]+?)<\\/item>/g)];\n\nconst articles = itemMatches.map(item => {\n  const content = item[1];\n  \n  const titleMatch = content.match(/<title><!\\[CDATA\\[(.+?)\\]\\]><\\/title>/);\n  const linkMatch = content.match(/<link>(https:\\/\\/venturebeat\\.com\\/.+?)<\\/link>/);\n  const descMatch = content.match(/<description><!\\[CDATA\\[([\\s\\S]+?)\\]\\]><\\/description>/);\n  const dateMatch = content.match(/<pubDate>(.+?)<\\/pubDate>/);\n\n  return {\n    json: {\n      title: titleMatch ? titleMatch[1] : \"\",\n      link: linkMatch ? linkMatch[1] : \"\",\n      description: descMatch ? descMatch[1].replace(/<[^>]+>/g, '').substring(0, 500) : \"\",\n      pubDate: dateMatch ? dateMatch[1] : \"\",\n    }\n  };\n});\n\nreturn articles;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3c2e0990-c8bb-4b44-a57a-b046f5977456",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a content strategist for a tech blog.\n\nBelow are the latest articles from VentureBeat. \nSelect the SINGLE most interesting and relevant article \nfor our audience of business professionals and tech enthusiasts.\n\nArticles:\n{{ $json.title }} - {{ $json.description }}\n\nBased on the article above, respond in this exact format:\nSelectedTitle: [the article title]\nSelectedLink: [the article link]\nSelectedDescription: [the article description]\nReason: [one sentence why this is the best topic]\nKeywords: [5 comma separated keywords]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "5c9fd1ae-e883-4ec2-a273-f3b4f4dd0f0c",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiItems = $input.all();\nconst originalItems = $('Code in JavaScript').all();\n\n// Pick the first item as the best article\nconst bestAiItem = aiItems[0].json.output?.[0]?.content?.[0]?.text || \"\";\nconst bestOriginal = originalItems[0].json;\n\nconst titleMatch = bestAiItem.match(/SelectedTitle:\\s*(.+)/);\nconst linkMatch = bestAiItem.match(/SelectedLink:\\s*(.+)/);\nconst descMatch = bestAiItem.match(/SelectedDescription:\\s*([\\s\\S]+?)(?=Reason:)/);\nconst reasonMatch = bestAiItem.match(/Reason:\\s*(.+)/);\nconst keywordsMatch = bestAiItem.match(/Keywords:\\s*(.+)/);\n\nreturn [{\n  json: {\n    title: titleMatch ? titleMatch[1].trim() : bestOriginal.title,\n    link: bestOriginal.link,\n    description: descMatch ? descMatch[1].trim() : bestOriginal.description,\n    reason: reasonMatch ? reasonMatch[1].trim() : \"\",\n    keywords: keywordsMatch ? keywordsMatch[1].trim() : \"\",\n    pubDate: bestOriginal.pubDate,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "79e21130-5ff5-4f62-9201-6240168259af",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert tech blogger. Write a full blog post SPECIFICALLY about this news story. Stay on topic. Do NOT write about AI in general. Write ONLY about the specific news below.\n\nTitle: {{ $json.title }}\nDescription: {{ $json.description }}\nKeywords: {{ $json.keywords }}\n\nRequirements:\n- Write between 600-800 words\n- Use flowing paragraphs NOT bullet points\n- Include 3 sections with subheadings\n- Reference specific details from the news story\n- Professional but engaging tone\n- End with a call to action\n\nRespond in this EXACT format:\nHeadline: [your headline here]\nBlogPost: [your full blog post here written in paragraphs]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "b18026cd-0412-4b33-aa95-295e7634640c",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Code in JavaScript1').first().json;\n\nconst headlineMatch = aiOutput.match(/###?\\s*Headline:\\s*(.+)/);\nconst blogPostMatch = aiOutput.match(/BlogPost:\\s*([\\s\\S]+)/);\n\nreturn [{\n  json: {\n    title: original.title,\n    link: original.link,\n    keywords: original.keywords,\n    pubDate: original.pubDate,\n    headline: headlineMatch ? headlineMatch[1].trim() : original.title,\n    blogPost: blogPostMatch ? blogPostMatch[1].trim() : \"\",\n    date: new Date().toDateString(),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        0
+      ],
+      "id": "8d3dcb27-74a8-465c-afa3-7d12ebe4b67d",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=New Blog Post Ready: {{ $json.headline }}",
+        "message": "=New blog post generated!\\n\\nHeadline: {{ $json.headline }}\\nSource: {{ $json.link }}\\nKeywords: {{ $json.keywords }}\\nDate: {{ $json.date }}\\n\\n---\\n\\n{{ $json.blogPost }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1744,
+        0
+      ],
+      "id": "8234e3ce-fa80-4d48-852d-88a238497452",
+      "name": "Create a draft",
+      "webhookId": "fe215151-996e-4a1c-b10b-c3a0ae2437d1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a social media content writer.\n\nWrite 3 social media posts based on this blog post:\n\nHeadline: {{ $('Code in JavaScript2').first().json.headline }}\nKeywords: {{ $('Code in JavaScript2').first().json.keywords }}\nLink: {{ $('Code in JavaScript2').first().json.link }}\n\nWrite one post for each platform:\n1. LinkedIn - professional and insightful, 3-5 hashtags\n2. Twitter - short and punchy, max 280 characters, 2-3 hashtags\n3. Instagram - fun and engaging, 5-8 hashtags\n\nRespond in this exact format:\nLinkedIn: [post]\nTwitter: [post]\nInstagram: [post]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1952,
+        0
+      ],
+      "id": "ceb44e59-7c97-4ed2-8ff5-b9a1f6c0a450",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Code in JavaScript2').first().json;\n\nconst linkedinMatch = aiOutput.match(/LinkedIn:\\s*([\\s\\S]+?)(?=Twitter:)/);\nconst twitterMatch = aiOutput.match(/Twitter:\\s*([\\s\\S]+?)(?=Instagram:)/);\nconst instagramMatch = aiOutput.match(/Instagram:\\s*([\\s\\S]+)/);\n\nreturn [{\n  json: {\n    title: original.title,\n    link: original.link,\n    headline: original.headline,\n    keywords: original.keywords,\n    date: original.date,\n    linkedin: linkedinMatch ? linkedinMatch[1].trim() : \"\",\n    twitter: twitterMatch ? twitterMatch[1].trim() : \"\",\n    instagram: instagramMatch ? instagramMatch[1].trim() : \"\",\n    socialPosts: `LinkedIn: ${linkedinMatch ? linkedinMatch[1].trim() : \"\"}\\n\\nTwitter: ${twitterMatch ? twitterMatch[1].trim() : \"\"}\\n\\nInstagram: ${instagramMatch ? instagramMatch[1].trim() : \"\"}`,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        0
+      ],
+      "id": "dc16ed86-e31e-487c-b223-e88a193bfcb0",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1sHSKcORaJhnQyMrCZQylxQX890Z6Q51hbBaK5His844",
+          "mode": "list",
+          "cachedResultName": "AI Content Research & Publishing Pipeline - Content Pipeline Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1sHSKcORaJhnQyMrCZQylxQX890Z6Q51hbBaK5His844/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1sHSKcORaJhnQyMrCZQylxQX890Z6Q51hbBaK5His844/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Topic": "={{ $json.headline }}",
+            "Source": "={{ $json.link }}",
+            "Blog Post Link": "={{ $json.link }}",
+            "Social Posts": "={{ $json.socialPosts }}",
+            "Status": "Published"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Topic",
+              "displayName": "Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Blog Post Link",
+              "displayName": "Blog Post Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Social Posts",
+              "displayName": "Social Posts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2512,
+        0
+      ],
+      "id": "6762ee59-af61-4783-a507-96bf56a7d2c5",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📝 AI Content Research & Publishing Workflow\n\nFetches live tech news from VentureBeat RSS feed daily, \nAI selects the best article, writes a full blog post, \ncreates social media posts and logs everything.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every morning at 6am\n\n**Step 2**\n🌐 HTTP Request — Fetches VentureBeat RSS news feed\n\n**Step 3**\n⚙️ Code in JavaScript — Parses and extracts articles\n\n**Step 4**\n🤖 OpenAI — Selects the most relevant article\n\n**Step 5**\n⚙️ Code in JavaScript1 — Cleans selected article data\n\n**Step 6**\n🤖 OpenAI1 — Writes full 800 word blog post\n\n**Step 7**\n⚙️ Code in JavaScript2 — Cleans blog post output\n\n**Step 8**\n📧 Gmail — Creates blog post draft for review\n\n**Step 9**\n🤖 OpenAI2 — Writes LinkedIn Twitter Instagram posts\n\n**Step 10**\n⚙️ Code in JavaScript3 — Cleans social media posts\n\n**Step 11**\n📊 Google Sheets — Logs content to pipeline sheet",
+        "height": 752,
+        "width": 512
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -576,
+        -304
+      ],
+      "typeVersion": 1,
+      "id": "99909b5a-de2d-40d3-8ce0-3a19e2029eb1",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
