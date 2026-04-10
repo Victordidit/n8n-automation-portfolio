@@ -1,0 +1,340 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b99059fa-698c-4f74-9881-88bc24cbcd5c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1p-_SeKEFAGzndKiGm0mmW3JSMyMt-8_Dbpsc71VxhcA",
+          "mode": "list",
+          "cachedResultName": "E-commerce Order & Inventory Workflow - Orders Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1p-_SeKEFAGzndKiGm0mmW3JSMyMt-8_Dbpsc71VxhcA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1p-_SeKEFAGzndKiGm0mmW3JSMyMt-8_Dbpsc71VxhcA/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "611e5cfd-d74c-4737-ba5c-ffc14c80f7c3",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $input.all();\n\nreturn orders.map(order => {\n  const orderId = order.json[' Order ID '];\n  const product = order.json['Products'];\n  const quantity = order.json['Quantity'];\n  const customerEmail = order.json['Customer Email'];\n  const rowNumber = order.json['row_number'];\n\n  return {\n    json: {\n      orderId,\n      product,\n      quantity,\n      customerEmail,\n      rowNumber,\n      orderSummary: `Order #${orderId} - ${quantity}x ${product} from ${customerEmail}`,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "09ebde7b-5ca4-4527-9d14-8cedbf6092e2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg",
+          "mode": "list",
+          "cachedResultName": "E-commerce Order & Inventory Workflow - Inventory Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        0
+      ],
+      "id": "007dc8b6-3126-46b2-be37-cb92156c2e41",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inventoryItems = $input.all();\nconst order = $('Code in JavaScript').first().json;\n\n// Find the matching product in inventory\nconst match = inventoryItems.find(\n  item => item.json.Product.toLowerCase() === order.product.toLowerCase()\n);\n\nconst currentStock = match ? match.json.Stock : 0;\nconst newStock = currentStock - order.quantity;\nconst rowNumber = match ? match.json.row_number : null;\nconst isLowStock = newStock <= 2;\nconst isOutOfStock = newStock <= 0;\n\nreturn [{\n  json: {\n    orderId: order.orderId,\n    product: order.product,\n    quantity: order.quantity,\n    customerEmail: order.customerEmail,\n    orderSummary: order.orderSummary,\n    currentStock,\n    newStock,\n    rowNumber,\n    stockStatus: isOutOfStock ? \"Out of Stock\" : isLowStock ? \"Low Stock\" : \"In Stock\",\n    warehouseAlert: isLowStock ? `⚠️ LOW STOCK ALERT: ${order.product} has only ${newStock} units remaining!` : null,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "915ca68e-4e3b-4950-8ac0-852abbd89431",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=New Order #{{ $json.orderId }} - {{ $json.product }}",
+        "message": "=New Order Received!  {{ $json.orderSummary }}  Inventory Update: - Previous Stock: {{ $json.currentStock }} - Units Ordered: {{ $json.quantity }} - Remaining Stock: {{ $json.newStock }} - Stock Status: {{ $json.stockStatus }}  {{ $json.warehouseAlert }}  Please process this order as soon as possible.  Thank you!",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "e84a78fd-8868-4a1a-a9a9-3799e2dd6292",
+      "name": "Create a draft",
+      "webhookId": "ded65cbb-769f-4620-a7ff-c56108ce3d0b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $('Code in JavaScript1').first().json;\n\nreturn [{\n  json: {\n    product: order.product,\n    newStock: order.newStock,\n    stockStatus: order.stockStatus,\n    rowNumber: order.rowNumber,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "29e5db94-8db4-4c72-9335-0dcc3b1be722",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg",
+          "mode": "list",
+          "cachedResultName": "E-commerce Order & Inventory Workflow - Inventory Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Jf4N1efhIvOYumUjWCMmPvUyjLA2WLoqrXf9jbkSeEg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Product": "={{ $json.product }}",
+            "Stock": "={{ $json.newStock }}",
+            "Status": "={{ $json.stockStatus }}"
+          },
+          "matchingColumns": [
+            "Product"
+          ],
+          "schema": [
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stock",
+              "displayName": "Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "c30badd8-cb55-4a49-8429-52e3808b9c14",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🛒 E-commerce Order & Inventory Workflow\n\nMonitors new orders every 5 minutes, checks inventory \nlevels, notifies the warehouse via email and \nautomatically updates stock levels in Google Sheets.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Checks for new orders every 5 mins\n\n**Step 2**\n📊 Google Sheets — Reads new orders from Orders Sheet\n\n**Step 3**\n⚙️ Code in JavaScript — Processes order details\n\n**Step 4**\n📊 Google Sheets1 — Reads current inventory levels\n\n**Step 5**\n⚙️ Code in JavaScript1 — Checks stock & detects low stock\n\n**Step 6**\n📧 Gmail — Sends warehouse notification draft\n\n**Step 7**\n⚙️ Code in JavaScript2 — Prepares inventory update data\n\n**Step 8**\n📊 Google Sheets2 — Updates stock levels in Inventory Sheet",
+        "height": 608,
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "989b3896-0a70-4811-98db-a8fe5ac52d67",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
