@@ -1,0 +1,437 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "86c84918-3850-4b3d-a8e2-b18bf13414f9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4",
+          "mode": "list",
+          "cachedResultName": "AI Financial Monitor & Alert System - Transactions Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "6af646cf-c10a-4541-a306-b5d4aaa3cd4b",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Separate income and expenses\nconst expenses = items.filter(i => i.json.Type === 'Expense');\nconst income = items.filter(i => i.json.Type === 'Income');\n\n// Calculate totals\nconst totalExpenses = expenses.reduce((sum, i) => sum + i.json.Amount, 0);\nconst totalIncome = income.reduce((sum, i) => sum + i.json.Amount, 0);\nconst netBalance = totalIncome - totalExpenses;\n\n// Calculate average expense\nconst avgExpense = totalExpenses / expenses.length;\n\n// Detect anomalies\nconst anomalies = [];\n\n// Check for unusually large expenses (3x average)\nexpenses.forEach(i => {\n  if (i.json.Amount > avgExpense * 3) {\n    anomalies.push({\n      type: 'Large Expense',\n      description: i.json.Description,\n      amount: i.json.Amount,\n      date: i.json.Date,\n    });\n  }\n});\n\n// Check for duplicate charges\nconst descriptions = {};\nexpenses.forEach(i => {\n  const key = `${i.json.Description}-${i.json.Amount}`;\n  if (descriptions[key]) {\n    anomalies.push({\n      type: 'Duplicate Charge',\n      description: i.json.Description,\n      amount: i.json.Amount,\n      date: i.json.Date,\n    });\n  }\n  descriptions[key] = true;\n});\n\n// Category breakdown\nconst categories = {};\nexpenses.forEach(i => {\n  categories[i.json.Category] = (categories[i.json.Category] || 0) + i.json.Amount;\n});\n\nreturn [{\n  json: {\n    totalIncome,\n    totalExpenses,\n    netBalance,\n    avgExpense: avgExpense.toFixed(2),\n    anomaliesFound: anomalies.length > 0,\n    anomalies,\n    categories,\n    transactionCount: items.length,\n    reportDate: new Date().toDateString(),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "4c3b9612-36cc-4a19-9b00-0e297dcb4ffe",
+      "name": "Analyze Spending"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert financial analyst and advisor.\n\nAnalyze this financial data and write a detailed report.\n\nFinancial Summary:\n- Total Income: ${{ $json.totalIncome }}\n- Total Expenses: ${{ $json.totalExpenses }}\n- Net Balance: ${{ $json.netBalance }}\n- Average Expense: ${{ $json.avgExpense }}\n- Anomalies Found: {{ $json.anomaliesFound }}\n- Anomalies: {{ JSON.stringify($json.anomalies) }}\n- Category Breakdown: {{ JSON.stringify($json.categories) }}\n- Report Date: {{ $json.reportDate }}\n\nWrite a professional financial report that includes:\n- Executive summary of financial health\n- Analysis of spending patterns\n- Detailed explanation of any anomalies\n- Risk assessment\n- Specific recommendations to improve financial health\n\nRespond in this exact format:\nFinancialHealth: [Good/Warning/Critical]\nSubject: [email subject line]\nReport: [full detailed report]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f9f1b9e4-d39e-42fc-8da9-a926af3e7021",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Analyze Spending').first().json;\n\nconst healthMatch = aiOutput.match(/\\*?\\*?FinancialHealth:\\*?\\*?\\s*(.+)/);\nconst subjectMatch = aiOutput.match(/\\*?\\*?Subject:\\*?\\*?\\s*(.+)/);\nconst reportMatch = aiOutput.match(/\\*?\\*?Subject:.+\\n+([\\s\\S]+)/);\n\nconst health = healthMatch ? healthMatch[1].replace(/\\*/g, '').trim() : \"Warning\";\nconst subject = subjectMatch ? subjectMatch[1].replace(/\\*/g, '').trim() : \"Financial Report\";\n\nreturn [{\n  json: {\n    totalIncome: original.totalIncome,\n    totalExpenses: original.totalExpenses,\n    netBalance: original.netBalance,\n    anomaliesFound: original.anomaliesFound,\n    anomalies: original.anomalies,\n    categories: original.categories,\n    reportDate: original.reportDate,\n    financialHealth: health,\n    subject: subject,\n    report: reportMatch ? reportMatch[1].trim() : \"\",\n    isAnomaly: original.anomaliesFound,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "d7a85693-1d3e-4a7f-897f-a942d021fe95",
+      "name": "CleanUp"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d73a4c55-09e0-43ea-9dc9-9095f3afab38",
+              "leftValue": "={{ $json.isAnomaly }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "3a8aea8c-842b-4115-a7ff-b850cc8ed397",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=🚨 {{ $json.subject }}",
+        "message": "=⚠️ FINANCIAL ALERT - {{ $json.financialHealth }} STATUS\\n\\nReport Date: {{ $json.reportDate }}\\nTotal Income: ${{ $json.totalIncome }}\\nTotal Expenses: ${{ $json.totalExpenses }}\\nNet Balance: ${{ $json.netBalance }}\\n\\nANOMALIES DETECTED:\\n{{ JSON.stringify($json.anomalies) }}\\n\\n---\\n\\nFULL REPORT:\\n{{ $json.report }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        -96
+      ],
+      "id": "ad6caf44-ae9d-4c84-a827-62ee7c4b001b",
+      "name": "Create a draft",
+      "webhookId": "653b90c6-8fe8-4340-aa59-f8556a78762e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=✅ Weekly Financial Summary - {{ $json.reportDate }}",
+        "message": "=✅ FINANCIAL STATUS - {{ $json.financialHealth }}\\n\\nReport Date: {{ $json.reportDate }}\\nTotal Income: ${{ $json.totalIncome }}\\nTotal Expenses: ${{ $json.totalExpenses }}\\nNet Balance: ${{ $json.netBalance }}\\n\\n---\\n\\nFULL REPORT:\\n{{ $json.report }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        96
+      ],
+      "id": "6c30f950-885c-4649-b78e-0275e228f1b2",
+      "name": "Create a draft1",
+      "webhookId": "10af0edd-cc65-49d6-a3b3-1185c99943a4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('CleanUp').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      date: item.json.reportDate,\n      totalIncome: item.json.totalIncome,\n      totalExpenses: item.json.totalExpenses,\n      netBalance: item.json.netBalance,\n      financialHealth: item.json.financialHealth,\n      anomaliesFound: item.json.anomaliesFound ? 'Yes' : 'No',\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -96
+      ],
+      "id": "0db2a221-23d6-4213-b197-b1fed3bfa41e",
+      "name": "CleanUp2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4",
+          "mode": "list",
+          "cachedResultName": "AI Financial Monitor & Alert System - Transactions Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1500689659,
+          "mode": "list",
+          "cachedResultName": "Reports",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-bhecXbifb4ujE-qgpc0fvlIxL3wrgbEbmctYq30mG4/edit#gid=1500689659"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Total Income": "={{ $json.totalIncome }}",
+            "Total Expense": "={{ $json.totalExpenses }}",
+            "Net Balance": "={{ $json.netBalance }}",
+            "Financial Health": "={{ $json.financialHealth }}",
+            "Anomalies Found": "={{ $json.anomaliesFound }}"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total Income",
+              "displayName": "Total Income",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Expense",
+              "displayName": "Total Expense",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Net Balance",
+              "displayName": "Net Balance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Financial Health",
+              "displayName": "Financial Health",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Anomalies Found",
+              "displayName": "Anomalies Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        -96
+      ],
+      "id": "10e005d6-41bc-4a34-8a79-a1c377b4c3a3",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "💰 AI Financial Monitor & Alert System Workflow\n\nReads daily transactions, analyzes spending patterns, \ndetects anomalies and duplicate charges, uses AI to \nwrite a financial report and sends urgent alerts if needed.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every day at 7am\n\n**Step 2**\n📊 Google Sheets — Reads all transactions\n\n**Step 3**\n⚙️ Analyze Spending — Calculates totals and detects anomalies\n\n**Step 4**\n🤖 OpenAI — Writes professional financial health report\n\n**Step 5**\n⚙️ CleanUp — Cleans and structures AI report output\n\n**Step 6**\n🔀 IF — Checks if anomalies were detected\n\n**Step 7**\n✅ TRUE: Gmail — Sends urgent financial alert draft\n\n**Step 8**\n✅ TRUE: Code in JavaScript — Prepares logging data\n\n**Step 9**\n✅ TRUE: Google Sheets1 — Logs report to Reports tab\n\n**Step 10**\n❌ FALSE: Gmail1 — Sends weekly summary draft\n\n**Step 11**\n❌ FALSE: Code in JavaScript1 — Prepares logging data\n\n**Step 12**\n❌ FALSE: Google Sheets2 — Logs report to Reports tab",
+        "height": 816,
+        "width": 448
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        -272
+      ],
+      "typeVersion": 1,
+      "id": "d2430e93-ce5e-45de-ba4f-0d07e288f148",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Analyze Spending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Spending": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "CleanUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CleanUp": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "CleanUp2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CleanUp2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
