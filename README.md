@@ -2,6 +2,16 @@
 **Curated by Victordidit**
 
 A collection of 12 professional AI-driven workflows designed to bridge the gap between bold design and autonomous logic.
+---
+
+### 💡 How to use these workflows:
+
+1. **Open** the specific `.json` file from the `workflows/` folder.
+2. **Copy** the entire block of code.
+3. **Open** your n8n canvas.
+4. **Paste** directly onto the canvas using `Ctrl + V` (Windows) or `Cmd + V` (Mac).
+
+---
 
 ## 📁 The Automations
 1. [🤖 AI Lead Generation](./workflows/lead-gen.md)
