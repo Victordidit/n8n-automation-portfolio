@@ -1,0 +1,434 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-support",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ddcc6007-1ea2-4489-8069-0bf323265218",
+      "name": "Webhook",
+      "webhookId": "ea082985-54d7-4b13-9a72-cd2b4b40e9cb"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o",
+          "mode": "list",
+          "cachedResultName": "AI Customer Support Agent - Support Tickets Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 543223656,
+          "mode": "list",
+          "cachedResultName": "Knowledge Base",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o/edit#gid=543223656"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "6fc0a725-61aa-43cd-ac4e-530d3a86edd2",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const knowledgeBase = $input.all();\nconst webhook = $('Webhook').first().json.body;\n\nconst customerEmail = webhook.email;\nconst issue = webhook.issue;\nconst ticketId = 'TKT-' + Date.now();\n\n// Try to find a matching solution\nlet matchedSolution = null;\nlet matchedTopic = null;\n\nfor (const item of knowledgeBase) {\n  const topic = item.json['Topic'].toLowerCase();\n  if (issue.toLowerCase().includes(topic.toLowerCase())) {\n    matchedSolution = item.json['Solution'];\n    matchedTopic = item.json['Topic'];\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    ticketId,\n    customerEmail,\n    issue,\n    matchedTopic,\n    matchedSolution,\n    hasMatch: matchedSolution !== null,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3d2b47dd-21ce-467b-bb8e-a21a0d53afb6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional customer support agent.\n\nA customer has submitted a support ticket. \nUse the knowledge base solution to write a \nhelpful and friendly response.\n\nTicket ID: {{ $json.ticketId }}\nCustomer Issue: {{ $json.issue }}\nKnowledge Base Solution: {{ $json.matchedSolution }}\nHas Match: {{ $json.hasMatch }}\n\nIf Has Match is true:\n- Write a friendly professional reply using the solution\n- Make it warm and personalized\n\nIf Has Match is false:\n- Apologize that you cannot resolve this automatically\n- Let them know a human agent will be in touch within 24 hours\n\nRespond in this exact format:\nConfidence: [High/Low]\nReply: [your reply here]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a24bcc69-e479-48f9-9b28-6657c9dfcdf8",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c74a938d-a8a6-43df-b58d-72572dbbbe99",
+              "leftValue": "={{ $('Code in JavaScript').first().json.hasMatch }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        0
+      ],
+      "id": "3058d0a6-5ab0-4755-b09d-27bad3392f34",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Code in JavaScript').first().json;\n\nconst confidenceMatch = aiOutput.match(/Confidence:\\s*(.+)/);\nconst replyMatch = aiOutput.match(/Reply:\\s*([\\s\\S]+)/);\n\nreturn [{\n  json: {\n    ticketId: original.ticketId,\n    customerEmail: original.customerEmail,\n    issue: original.issue,\n    confidence: confidenceMatch ? confidenceMatch[1].trim() : \"Low\",\n    reply: replyMatch ? replyMatch[1].trim() : \"\",\n    status: 'Resolved',\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -96
+      ],
+      "id": "380d8fe1-0bfd-4cfa-8290-db4688044f9d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: Support Ticket {{ $json.ticketId }} - {{ $json.issue }}",
+        "message": "={{ $json.reply }}",
+        "options": {
+          "sendTo": "={{ $json.customerEmail }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        -96
+      ],
+      "id": "3f18c503-c59f-4387-b14b-7a176ce575de",
+      "name": "Create a draft",
+      "webhookId": "b329a523-d0ad-4652-a742-67f06ac5e34d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=🚨 Escalation Required - {{ $('Code in JavaScript').first().json.ticketId }}",
+        "message": "=A customer issue could not be resolved automatically.\\n\\nCustomer: {{ $('Code in JavaScript').first().json.customerEmail }}\\nIssue: {{ $('Code in JavaScript').first().json.issue }}\\n\\nPlease contact the customer within 24 hours.",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        96
+      ],
+      "id": "986da505-b4cc-4c50-a1cc-62bd22e8964d",
+      "name": "Create a draft1",
+      "webhookId": "1e62faac-acb9-48b8-bb6d-f409dca5523c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o",
+          "mode": "list",
+          "cachedResultName": "AI Customer Support Agent - Support Tickets Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Ticket ID ": "={{ $json.ticketId }}",
+            "Customer Email": "={{ $json.customerEmail }}",
+            "Issue ": "={{ $json.issue }}",
+            "AI Response": "={{ $json.reply }}",
+            "Status": "={{ $json.status }}",
+            "Date": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "Ticket ID "
+          ],
+          "schema": [
+            {
+              "id": "Ticket ID ",
+              "displayName": "Ticket ID ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue ",
+              "displayName": "Issue ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Response",
+              "displayName": "AI Response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        -96
+      ],
+      "id": "50e31508-3061-4e35-87af-671313a2e90a",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Code in JavaScript1').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      ticketId: item.json.ticketId,\n      customerEmail: item.json.customerEmail,\n      issue: item.json.issue,\n      reply: item.json.reply,\n      status: item.json.status,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -96
+      ],
+      "id": "7a1c1969-efa1-458b-b769-d4b231d17ebc",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "content": "🤖 AI Customer Support Agent Workflow\n\nReceives support tickets via Webhook in real time, \nsearches a knowledge base for solutions, uses AI to \ngenerate replies and escalates to a human if unsolved.\n\nNodes:\n**Step 1**\n▶ Webhook — Receives customer support tickets instantly\n\n**Step 2**\n📊 Google Sheets — Reads knowledge base solutions\n\n**Step 3**\n⚙️ Code in JavaScript — Matches issue to knowledge base\n\n**Step 4**\n🤖 OpenAI — Generates AI powered support reply\n\n**Step 5**\n🔀 IF — Checks if AI resolved the issue\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans resolved ticket data\n\n**Step 7**\n📧 TRUE: Gmail — Sends resolution draft to customer\n\n**Step 8**\n⚙️ TRUE: Code in JavaScript2 — Prepares logging data\n\n**Step 9**\n📊 TRUE: Google Sheets1 — Logs resolved ticket\n\n**Step 10**\n❌ FALSE: Gmail1 — Escalates to human agent",
+        "height": 688,
+        "width": 576
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -624,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "ebd5b97e-fa4b-4e92-a2e4-c61d08d1656a",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
