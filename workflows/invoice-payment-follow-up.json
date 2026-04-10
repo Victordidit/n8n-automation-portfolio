@@ -1,0 +1,364 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7729519c-c864-4568-9c32-c6a937851e31",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk",
+          "mode": "list",
+          "cachedResultName": "Invoice & Payment Follow-Up System - Invoice Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b6058b31-4f9b-41e5-b736-c43d8156c321",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst today = new Date();\n\nconst results = [];\n\nfor (const item of items) {\n  const invoice = item.json;\n  const dueDate = new Date(invoice['Due Date']);\n  const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));\n\n  let urgency;\n  let tone;\n\n  if (daysOverdue <= 0) {\n    urgency = 'Due Soon';\n    tone = 'friendly reminder';\n  } else if (daysOverdue <= 14) {\n    urgency = 'Overdue';\n    tone = 'polite but firm follow-up';\n  } else if (daysOverdue <= 30) {\n    urgency = 'Seriously Overdue';\n    tone = 'urgent and serious follow-up';\n  } else {\n    urgency = 'Critical';\n    tone = 'final notice before escalation';\n  }\n\n  results.push({\n    json: {\n      invoiceId: invoice['Invoice ID'],\n      client: invoice['Client'],\n      clientEmail: invoice['Client Email'],\n      amount: invoice['Amount'],\n      dueDate: invoice['Due Date'],\n      daysOverdue,\n      urgency,\n      tone,\n      rowNumber: invoice['row_number'],\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "8440f0df-1170-430b-834a-b19dd781bb59",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional accounts receivable assistant.\n\nWrite a {{ $json.tone }} email for an unpaid invoice.\n\nInvoice Details:\n- Invoice ID: {{ $json.invoiceId }}\n- Client: {{ $json.client }}\n- Amount: {{ $json.amount }}\n- Due Date: {{ $json.dueDate }}\n- Days Overdue: {{ $json.daysOverdue }}\n- Urgency Level: {{ $json.urgency }}\n\nWrite a professional email with:\n- A subject line\n- A clear payment request\n- Payment details reminder\n- A call to action\n- Professional sign off\n\nRespond in this exact format:\nSubject: [subject]\nBody: [email body]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "76b0f858-988c-4460-b710-897d466baa31",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiItems = $input.all();\nconst originalItems = $('Code in JavaScript').all();\n\nreturn aiItems.map((item, i) => {\n  const text = item.json.output?.[0]?.content?.[0]?.text || \"\";\n  const original = originalItems[i]?.json || {};\n\n  const subjectMatch = text.match(/Subject:\\s*(.+)/);\n  const bodyMatch = text.match(/Body:\\s*([\\s\\S]+)/);\n\n  return {\n    json: {\n      invoiceId: original.invoiceId,\n      client: original.client,\n      clientEmail: original.clientEmail,\n      amount: original.amount,\n      dueDate: original.dueDate,\n      daysOverdue: original.daysOverdue,\n      urgency: original.urgency,\n      rowNumber: original.rowNumber,\n      subject: subjectMatch ? subjectMatch[1].trim() : \"\",\n      body: bodyMatch ? bodyMatch[1].trim() : \"\",\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "fea177a0-4ad5-492d-bbc9-0fb8207937e5",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "sendTo": "={{ $json.clientEmail }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "8c4d5010-12e1-4bed-9aea-4dcaff7f409b",
+      "name": "Create a draft",
+      "webhookId": "109aee8a-6047-41d4-a10d-f9a2705779b7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk",
+          "mode": "list",
+          "cachedResultName": "Invoice & Payment Follow-Up System - Invoice Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GiqrjjOuQBjntcRIh5P4v4dWIau-37mJYuQaV7dmLZk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice ID": "={{ $json.invoiceId }}",
+            "Last Follow Up": "={{ $json.lastFollowUp }}"
+          },
+          "matchingColumns": [
+            "Invoice ID"
+          ],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Client",
+              "displayName": "Client",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last Follow Up",
+              "displayName": "Last Follow Up",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Client Email",
+              "displayName": "Client Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "519f4621-8558-445d-a817-0e8446032f30",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Code in JavaScript1').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      invoiceId: item.json.invoiceId,\n      lastFollowUp: new Date().toISOString(),\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "548e6e78-a9da-436c-b72a-8659ccc8b0f7",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "content": "🧾 Invoice & Payment Follow-Up Workflow\n\nChecks unpaid invoices daily, calculates how overdue \neach one is, uses AI to write escalating follow-up \nemails and logs the last follow-up date automatically.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every day at 9am\n\n**Step 2**\n📊 Google Sheets — Reads all unpaid invoices\n\n**Step 3**\n⚙️ Code in JavaScript — Calculates days overdue & urgency\n\n**Step 4**\n🤖 OpenAI — Writes follow-up email based on urgency level\n\n**Step 5**\n⚙️ Code in JavaScript1 — Cleans and structures AI output\n\n**Step 6**\n📧 Gmail — Creates follow-up draft for each client\n\n**Step 7**\n⚙️ Code in JavaScript2 — Prepares sheet update data\n\n**Step 8**\n📊 Google Sheets1 — Updates Last Follow Up date",
+        "height": 592,
+        "width": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -496,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "f17c4686-a287-410d-b667-d5f6194b5537",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
