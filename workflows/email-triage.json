@@ -1,0 +1,266 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "312c67cc-b194-4fcc-b623-b91ff5400bc1",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional email assistant.\n\nAnalyze this email and respond with:\n1. Category (choose one): Job Opportunity, Customer Support, Spam, Urgent, General Inquiry\n2. Priority (choose one): High, Medium, Low\n3. A professional reply to this email\n\nEmail From: {{ $json.From }}\nEmail Subject: {{ $json.Subject }}\nEmail Content: {{ $json.snippet }}\n\nRespond in this exact format:\nCategory: [category]\nPriority: [priority]\nReply: [your professional reply]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1fb588cd-7508-4348-a226-2b53fd7fb93d",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const text = item.json.output?.[0]?.content?.[0]?.text || \"\";\n\n  const categoryMatch = text.match(/Category:\\s*(.+)/);\n  const priorityMatch = text.match(/Priority:\\s*(.+)/);\n  const replyMatch = text.match(/Reply:\\s*([\\s\\S]+)/);\n\n  return {\n    json: {\n      from: $('Gmail Trigger').first().json.From,\n      subject: $('Gmail Trigger').first().json.Subject,\n      threadId: $('Gmail Trigger').first().json.threadId,\n      category: categoryMatch ? categoryMatch[1].trim() : \"\",\n      priority: priorityMatch ? priorityMatch[1].trim() : \"\",\n      reply: replyMatch ? replyMatch[1].trim() : \"\",\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "4c953fd3-e6b0-4fca-b000-bf2bd8d3d760",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $json.subject }}",
+        "message": "={{ $json.reply }}",
+        "options": {
+          "threadId": "={{ $json.threadId }}",
+          "sendTo": "={{ $json.from }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        0
+      ],
+      "id": "fb25582c-f7bd-4093-87ff-51dcfb727d64",
+      "name": "Create a draft",
+      "webhookId": "e951fe60-1491-455d-92a6-1265b305b004",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1waCM_IY5ReRlDXHX3DUv6rZbeC6G5iImEdt-f6oikac",
+          "mode": "list",
+          "cachedResultName": "Intelligent Email Triage & Auto-Response",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1waCM_IY5ReRlDXHX3DUv6rZbeC6G5iImEdt-f6oikac/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1waCM_IY5ReRlDXHX3DUv6rZbeC6G5iImEdt-f6oikac/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Sender": "={{ $('Code in JavaScript').first().json.from }}",
+            "Subject": "={{ $('Code in JavaScript').first().json.subject }}",
+            "Category ": "={{ $('Code in JavaScript').first().json.category }}",
+            "AI Reply": "={{ $('Code in JavaScript').first().json.reply }}",
+            "Date": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "Sender"
+          ],
+          "schema": [
+            {
+              "id": "Sender",
+              "displayName": "Sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Subject",
+              "displayName": "Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category ",
+              "displayName": "Category ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Reply",
+              "displayName": "AI Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        0
+      ],
+      "id": "078208fb-a6f1-40c7-920f-85656f784157",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📧 Email Triage & Auto-Response Workflow\n\nMonitors Gmail for new emails, uses AI to categorize \nthem and automatically creates a smart draft reply. \nLogs all activity to Google Sheets.\n\nNodes:\n**Step 1**\n▶ Gmail Trigger — Detects new incoming emails\n\n**Step 2**\n🤖 OpenAI — Categorizes email and drafts a reply\n\n**Step 3**\n⚙️ Code in JavaScript — Cleans and structures AI output\n\n**Step 4**\n📧 Gmail — Creates draft reply in Gmail\n\n**Step 5**\n📊 Google Sheets — Logs email and AI response",
+        "height": 512,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -368,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "7bcee082-fc05-49aa-b723-f09577f7ddc9",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
