@@ -1,0 +1,349 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9681e221-2184-428e-b628-cda9b6f79a25",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ",
+          "mode": "list",
+          "cachedResultName": "Social Media Content Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "041ba4fa-c7d4-4842-b4ca-c4304b06803d",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst results = [];\n\nfor (const item of items) {\n  const post = item.json;\n\n  const platformGuidelines = {\n    LinkedIn: 'professional, insightful and detailed. Use 3-5 hashtags. Max 1300 characters.',\n    Twitter: 'short, punchy and engaging. Use 2-3 hashtags. Max 280 characters.',\n    Instagram: 'visual, fun and inspiring. Use 5-10 hashtags. Max 500 characters.',\n  };\n\n  const guidelines = platformGuidelines[post.Platform] || 'engaging and professional';\n\n  results.push({\n    json: {\n      postId: post['Post ID'],\n      topic: post['Topic'],\n      platform: post['Platform'],\n      scheduledDate: post['Scheduled Date'],\n      guidelines,\n      rowNumber: post['row_number'],\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b0c6a651-0975-48ba-815d-e861073dc5fe",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional social media content writer.\n\nWrite a {{ $json.platform }} post about the following topic.\n\nTopic: {{ $json.topic }}\nPlatform: {{ $json.platform }}\nScheduled Date: {{ $json.scheduledDate }}\nGuidelines: {{ $json.guidelines }}\n\nMake the post {{ $json.guidelines }}\n\nRespond in this exact format:\nCaption: [your caption here]\nHashtags: [your hashtags here]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "fcb2192c-8495-42ff-a295-81cfdfd9a1b8",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiItems = $input.all();\nconst originalItems = $('Code in JavaScript').all();\n\nreturn aiItems.map((item, i) => {\n  const text = item.json.output?.[0]?.content?.[0]?.text || \"\";\n  const original = originalItems[i]?.json || {};\n\n  const captionMatch = text.match(/Caption:\\s*([\\s\\S]+?)(?=Hashtags:)/);\n  const hashtagsMatch = text.match(/Hashtags:\\s*([\\s\\S]+)/);\n\n  return {\n    json: {\n      postId: original.postId,\n      topic: original.topic,\n      platform: original.platform,\n      scheduledDate: original.scheduledDate,\n      rowNumber: original.rowNumber,\n      caption: captionMatch ? captionMatch[1].trim() : \"\",\n      hashtags: hashtagsMatch ? hashtagsMatch[1].trim() : \"\",\n      fullPost: `${captionMatch ? captionMatch[1].trim() : \"\"}\\n\\n${hashtagsMatch ? hashtagsMatch[1].trim() : \"\"}`,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "0214a266-7fbd-47a6-9511-ae99f9e651e3",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.platform }} Post - {{ $json.topic }} - Scheduled {{ $json.scheduledDate }}",
+        "message": "={{ $json.fullPost }}",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "46e7afca-0432-4652-925f-4a097dc825f7",
+      "name": "Create a draft",
+      "webhookId": "3ee0f718-c012-46d9-8bca-8f24aaf77cd9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Code in JavaScript1').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      postId: item.json.postId,\n      status: 'Scheduled',\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "efbb4177-ae2a-4e85-a2dc-9c00c30fc94f",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ",
+          "mode": "list",
+          "cachedResultName": "Social Media Content Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1saFVRzUiLnrzvZsdl7TYDC8L7wKvL5ElKyc2WtYNvGQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Post ID": "={{ $json.postId }}",
+            "Status": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "Post ID"
+          ],
+          "schema": [
+            {
+              "id": "Post ID",
+              "displayName": "Post ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Topic",
+              "displayName": "Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Platform",
+              "displayName": "Platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Scheduled Date",
+              "displayName": "Scheduled Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "1b68c645-6eaf-4a82-973e-e60ced7b2880",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📱 Social Media Content Scheduler Workflow\n\nReads content ideas from Google Sheets, uses AI to \nwrite platform optimized captions for LinkedIn, \nTwitter and Instagram and marks posts as scheduled.\n\nNodes:\n**Step 1**\n▶ Schedule Trigger — Runs every day at 7am\n\n**Step 2**\n📊 Google Sheets — Reads pending content ideas\n\n**Step 3**\n⚙️ Code in JavaScript — Adds platform guidelines per post\n\n**Step 4**\n🤖 OpenAI — Writes captions for each platform\n\n**Step 5**\n⚙️ Code in JavaScript1 — Cleans and structures AI output\n\n**Step 6**\n📧 Gmail — Creates draft posts for review\n\n**Step 7**\n⚙️ Code in JavaScript2 — Prepares status update data\n\n**Step 8**\n📊 Google Sheets1 — Marks posts as Scheduled",
+        "height": 608,
+        "width": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -480,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "fd8a956d-e136-4aa6-9d02-6724ecc8797e",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
