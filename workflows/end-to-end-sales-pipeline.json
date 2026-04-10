@@ -1,0 +1,721 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sales-pipeline",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7ee00d55-da08-40c7-9a0c-2e6ab319aa23",
+      "name": "Webhook",
+      "webhookId": "7577fe4d-5d16-4fb0-9e1f-ef379da4cd40"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert sales qualification assistant.\n\nScore this lead from 1-100 and determine if they are \na hot or cold lead based on their details.\n\nLead Details:\nName: {{ $json.body.name }}\nCompany: {{ $json.body.company }}\nIndustry: {{ $json.body.industry }}\nBudget: {{ $json.body.budget }}\nMessage: {{ $json.body.message }}\n\nScoring criteria:\n- Budget over $5000: +40 points\n- Budget $1000-$5000: +20 points\n- Budget under $1000: +5 points\n- Enterprise/Tech industry: +30 points\n- Clear use case in message: +30 points\n\nRespond in this exact format:\nScore: [number]\nCategory: [Hot/Cold]\nReasoning: [one sentence explanation]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "21401581-3d6d-4265-b8d1-2ca86e4417a6",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst webhook = $('Webhook').first().json.body;\n\nconst scoreMatch = aiOutput.match(/Score:\\s*(\\d+)/);\nconst categoryMatch = aiOutput.match(/Category:\\s*(.+)/);\nconst reasoningMatch = aiOutput.match(/Reasoning:\\s*(.+)/);\n\nconst score = scoreMatch ? parseInt(scoreMatch[1]) : 0;\nconst category = categoryMatch ? categoryMatch[1].trim() : \"Cold\";\nconst reasoning = reasoningMatch ? reasoningMatch[1].trim() : \"\";\n\nconst leadId = 'LEAD-' + Date.now();\n\nreturn [{\n  json: {\n    leadId,\n    name: webhook.name,\n    email: webhook.email,\n    company: webhook.company,\n    industry: webhook.industry,\n    budget: webhook.budget,\n    message: webhook.message,\n    score,\n    category,\n    reasoning,\n    isHot: category === 'Hot',\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "67e02702-7343-45fb-a01b-5b2abef45a17",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "791f0f72-5a3f-45b4-a9ef-607ae37138a0",
+              "leftValue": "={{ $json.isHot }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        768,
+        0
+      ],
+      "id": "3f45d093-9529-40c5-b16a-a93626be76a8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert sales copywriter.\n\nWrite a highly personalized outreach email for a hot lead.\n\nLead Details:\nName: {{ $('Code in JavaScript').first().json.name }}\nCompany: {{ $('Code in JavaScript').first().json.company }}\nIndustry: {{ $('Code in JavaScript').first().json.industry }}\nBudget: {{ $('Code in JavaScript').first().json.budget }}\nMessage: {{ $('Code in JavaScript').first().json.message }}\nAI Score: {{ $('Code in JavaScript').first().json.score }}/100\nReasoning: {{ $('Code in JavaScript').first().json.reasoning }}\n\nWrite a warm, personalized and compelling email that:\n- References their specific industry and needs\n- Highlights the value we can bring\n- Has a clear call to action to book a call\n- Is concise and professional\n\nRespond in this exact format:\nSubject: [subject line]\nBody: [email body]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        976,
+        -96
+      ],
+      "id": "d656041f-c921-4162-9c04-972f668cdd6f",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert sales copywriter.\n\nWrite a nurture email for a cold lead to warm them up.\n\nLead Details:\nName: {{ $('Code in JavaScript').first().json.name }}\nCompany: {{ $('Code in JavaScript').first().json.company }}\nIndustry: {{ $('Code in JavaScript').first().json.industry }}\nBudget: {{ $('Code in JavaScript').first().json.budget }}\nMessage: {{ $('Code in JavaScript').first().json.message }}\nAI Score: {{ $('Code in JavaScript').first().json.score }}/100\n\nWrite a friendly low pressure email that:\n- Provides value with helpful tips\n- Educates them about automation benefits\n- Keeps the door open for future conversation\n- Is warm and not pushy\n\nRespond in this exact format:\nSubject: [subject line]\nBody: [email body]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        976,
+        96
+      ],
+      "id": "879e3716-f7ef-4619-bfd0-8f197873266a",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "R9ufjb9DxGq4ix0a",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Code in JavaScript').first().json;\n\nconst subjectMatch = aiOutput.match(/Subject:\\s*(.+)/);\nconst bodyMatch = aiOutput.match(/Body:\\s*([\\s\\S]+)/);\n\nreturn [{\n  json: {\n    leadId: original.leadId,\n    name: original.name,\n    email: original.email,\n    company: original.company,\n    industry: original.industry,\n    budget: original.budget,\n    score: original.score,\n    category: original.category,\n    subject: subjectMatch ? subjectMatch[1].trim() : \"\",\n    body: bodyMatch ? bodyMatch[1].trim() : \"\",\n    status: 'Hot - Outreach Sent',\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        -96
+      ],
+      "id": "77e72e89-f589-4a09-97a2-cdeb173a6215",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst original = $('Code in JavaScript').first().json;\n\nconst subjectMatch = aiOutput.match(/Subject:\\s*(.+)/);\nconst bodyMatch = aiOutput.match(/Body:\\s*([\\s\\S]+)/);\n\nreturn [{\n  json: {\n    leadId: original.leadId,\n    name: original.name,\n    email: original.email,\n    company: original.company,\n    industry: original.industry,\n    budget: original.budget,\n    score: original.score,\n    category: original.category,\n    subject: subjectMatch ? subjectMatch[1].trim() : \"\",\n    body: bodyMatch ? bodyMatch[1].trim() : \"\",\n    status: 'Cold - Nurture Sent',\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        96
+      ],
+      "id": "b1055640-338f-4f81-b2c5-5f8327e2582f",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "sendTo": "={{ $json.email }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        -96
+      ],
+      "id": "178d4950-bd00-434b-a3d6-ad258230063b",
+      "name": "Create a draft",
+      "webhookId": "9d97aefb-4dab-493b-8181-70dde4bdc090",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "sendTo": "={{ $json.email }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        96
+      ],
+      "id": "43fbdec5-e09e-46e3-8af5-cad86ef4d24d",
+      "name": "Create a draft1",
+      "webhookId": "792c7b3d-2ae0-4d8c-a929-6f2669407189",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=🔥 Hot Lead Alert - {{ $('Code in JavaScript1').first().json.name }} from {{ $('Code in JavaScript1').first().json.company }}",
+        "message": "=A hot lead just came in!\\n\\nName: {{ $('Code in JavaScript1').first().json.name }}\\nEmail: {{ $('Code in JavaScript1').first().json.email }}\\nCompany: {{ $('Code in JavaScript1').first().json.company }}\\nIndustry: {{ $('Code in JavaScript1').first().json.industry }}\\nBudget: {{ $('Code in JavaScript1').first().json.budget }}\\nAI Score: {{ $('Code in JavaScript1').first().json.score }}/100\\n\\nOutreach email has been drafted. Follow up immediately!",
+        "options": {
+          "sendTo": "Victordiditt@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1744,
+        -96
+      ],
+      "id": "213020fc-1e8f-4222-81e8-3c6714a17c61",
+      "name": "Create a draft2",
+      "webhookId": "67b24e18-cfc9-46bc-84b6-31d4f5bb221f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IUlCxrOUlGR3c8Gt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Code in JavaScript1').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      leadId: item.json.leadId,\n      name: item.json.name,\n      email: item.json.email,\n      company: item.json.company,\n      industry: item.json.industry,\n      budget: item.json.budget,\n      score: item.json.score,\n      status: item.json.status,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -96
+      ],
+      "id": "adadbd87-38b7-4556-975f-b4842c9d6e94",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM",
+          "mode": "list",
+          "cachedResultName": "End-to-End Sales Pipeline - Sales CRM Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID ": "={{ $json.leadId }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company ": "={{ $json.company }}",
+            "Industry": "={{ $json.industry}}",
+            "Budget": "={{ $json.budget}}",
+            "AI Score": "={{ $json.score}}",
+            "Status": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "Lead ID "
+          ],
+          "schema": [
+            {
+              "id": "Lead ID ",
+              "displayName": "Lead ID ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company ",
+              "displayName": "Company ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Score",
+              "displayName": "AI Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        -96
+      ],
+      "id": "68120944-06a3-4968-9296-436ed1f32bb8",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Code in JavaScript2').all();\n\nreturn items.map(item => {\n  return {\n    json: {\n      leadId: item.json.leadId,\n      name: item.json.name,\n      email: item.json.email,\n      company: item.json.company,\n      industry: item.json.industry,\n      budget: item.json.budget,\n      score: item.json.score,\n      status: item.json.status,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        96
+      ],
+      "id": "09d803dc-79c2-4798-a185-2f9987b67949",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM",
+          "mode": "list",
+          "cachedResultName": "End-to-End Sales Pipeline - Sales CRM Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yD2ANuHEWo1_0ipqF6SJk1xX4jddyDizrEZBL30ElmM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID ": "={{ $json.leadId }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company ": "={{ $json.company }}",
+            "Industry": "={{ $json.industry }}",
+            "Budget": "={{ $json.budget }}",
+            "AI Score": "={{ $json.score }}",
+            "Status": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "Lead ID "
+          ],
+          "schema": [
+            {
+              "id": "Lead ID ",
+              "displayName": "Lead ID ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company ",
+              "displayName": "Company ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Score",
+              "displayName": "AI Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1952,
+        96
+      ],
+      "id": "36c66a28-6bfd-4d50-b112-8a548649c2e8",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Wmrix8zXDKrYWKhL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🎯 End-to-End Sales Pipeline Workflow\n\nReceives new leads via Webhook, uses AI to score them \nas hot or cold, sends personalized outreach to hot leads \nand nurture emails to cold leads. Logs all to CRM.\n\nNodes:\n**Step 1**\n▶ Webhook — Receives new lead submissions instantly\n\n**Step 2**\n🤖 OpenAI — Scores lead from 1-100 as Hot or Cold\n\n**Step 3**\n⚙️ Code in JavaScript — Cleans and structures lead data\n\n**Step 4**\n🔀 IF — Routes hot leads vs cold leads\n\n**Step 5**\n✅ TRUE: OpenAI1 — Writes personalized hot lead outreach\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans hot lead email\n\n**Step 7**\n✅ TRUE: Gmail — Sends outreach draft to hot lead\n\n**Step 8**\n✅ TRUE: Gmail1 — Sends urgent alert to sales rep\n\n**Step 9**\n✅ TRUE: Code in JavaScript3 — Prepares CRM data\n\n**Step 10**\n✅ TRUE: Google Sheets — Logs hot lead to CRM\n\n**Step 11**\n❌ FALSE: OpenAI2 — Writes cold lead nurture email\n\n**Step 12**\n❌ FALSE: Code in JavaScript2 — Cleans cold lead email\n\n**Step 13**\n❌ FALSE: Gmail2 — Sends nurture draft to cold lead\n\n**Step 14**\n❌ FALSE: Code in JavaScript4 — Prepares CRM data\n\n**Step 15**\n❌ FALSE: Google Sheets1 — Logs cold lead to CRM",
+        "height": 960,
+        "width": 496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -544,
+        -320
+      ],
+      "typeVersion": 1,
+      "id": "b18a8052-92c6-4b5e-9aee-6e3f2b5223f7",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Create a draft2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
