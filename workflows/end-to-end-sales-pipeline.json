@@ -2,23 +2,6 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "sales-pipeline",
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "7ee00d55-da08-40c7-9a0c-2e6ab319aa23",
-      "name": "Webhook",
-      "webhookId": "7577fe4d-5d16-4fb0-9e1f-ef379da4cd40"
-    },
-    {
-      "parameters": {
         "modelId": {
           "__rl": true,
           "value": "gpt-4o-mini",
@@ -28,7 +11,7 @@
         "responses": {
           "values": [
             {
-              "content": "=You are an expert sales qualification assistant.\n\nScore this lead from 1-100 and determine if they are \na hot or cold lead based on their details.\n\nLead Details:\nName: {{ $json.body.name }}\nCompany: {{ $json.body.company }}\nIndustry: {{ $json.body.industry }}\nBudget: {{ $json.body.budget }}\nMessage: {{ $json.body.message }}\n\nScoring criteria:\n- Budget over $5000: +40 points\n- Budget $1000-$5000: +20 points\n- Budget under $1000: +5 points\n- Enterprise/Tech industry: +30 points\n- Clear use case in message: +30 points\n\nRespond in this exact format:\nScore: [number]\nCategory: [Hot/Cold]\nReasoning: [one sentence explanation]"
+              "content": "=You are an expert sales qualification assistant.\n\nScore this lead from 1-100 and determine if they are \na hot or cold lead based on their details.\n\nLead Details:\nName: {{ $('On form submission').first().json.Name }}\nCompany: {{ $('On form submission').first().json.Company }}\nIndustry: {{ $('On form submission').first().json.Industry }}\nBudget: {{ $('On form submission').first().json.Budget }}\nMessage: {{ $('On form submission').first().json.Message }}\n\nScoring criteria:\n- Budget over $5000: +40 points\n- Budget $1000-$5000: +20 points\n- Budget under $1000: +5 points\n- Enterprise/Tech industry: +30 points\n- Clear use case in message: +30 points\n\nRespond in this exact format:\nScore: [number]\nCategory: [Hot/Cold]\nReasoning: [one sentence explanation]"
             }
           ]
         },
@@ -52,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst webhook = $('Webhook').first().json.body;\n\nconst scoreMatch = aiOutput.match(/Score:\\s*(\\d+)/);\nconst categoryMatch = aiOutput.match(/Category:\\s*(.+)/);\nconst reasoningMatch = aiOutput.match(/Reasoning:\\s*(.+)/);\n\nconst score = scoreMatch ? parseInt(scoreMatch[1]) : 0;\nconst category = categoryMatch ? categoryMatch[1].trim() : \"Cold\";\nconst reasoning = reasoningMatch ? reasoningMatch[1].trim() : \"\";\n\nconst leadId = 'LEAD-' + Date.now();\n\nreturn [{\n  json: {\n    leadId,\n    name: webhook.name,\n    email: webhook.email,\n    company: webhook.company,\n    industry: webhook.industry,\n    budget: webhook.budget,\n    message: webhook.message,\n    score,\n    category,\n    reasoning,\n    isHot: category === 'Hot',\n  }\n}];"
+        "jsCode": "const aiOutput = $input.first().json.output?.[0]?.content?.[0]?.text || \"\";\nconst formData = $('On form submission').first().json;\n\nconst scoreMatch = aiOutput.match(/Score:\\s*(\\d+)/);\nconst categoryMatch = aiOutput.match(/Category:\\s*(.+)/);\nconst reasoningMatch = aiOutput.match(/Reasoning:\\s*(.+)/);\n\nconst score = scoreMatch ? parseInt(scoreMatch[1]) : 0;\nconst category = categoryMatch ? categoryMatch[1].trim() : \"Cold\";\nconst reasoning = reasoningMatch ? reasoningMatch[1].trim() : \"\";\n\nconst leadId = 'LEAD-' + Date.now();\n\nreturn [{\n  json: {\n    leadId,\n    name: formData.Name,\n    email: formData.Email,\n    company: formData.Company,\n    industry: formData.Industry,\n    budget: formData.Budget,\n    message: formData.Message,\n    score,\n    category,\n    reasoning,\n    isHot: category === 'Hot',\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -547,7 +530,7 @@
     },
     {
       "parameters": {
-        "content": "🎯 End-to-End Sales Pipeline Workflow\n\nReceives new leads via Webhook, uses AI to score them \nas hot or cold, sends personalized outreach to hot leads \nand nurture emails to cold leads. Logs all to CRM.\n\nNodes:\n**Step 1**\n▶ Webhook — Receives new lead submissions instantly\n\n**Step 2**\n🤖 OpenAI — Scores lead from 1-100 as Hot or Cold\n\n**Step 3**\n⚙️ Code in JavaScript — Cleans and structures lead data\n\n**Step 4**\n🔀 IF — Routes hot leads vs cold leads\n\n**Step 5**\n✅ TRUE: OpenAI1 — Writes personalized hot lead outreach\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans hot lead email\n\n**Step 7**\n✅ TRUE: Gmail — Sends outreach draft to hot lead\n\n**Step 8**\n✅ TRUE: Gmail1 — Sends urgent alert to sales rep\n\n**Step 9**\n✅ TRUE: Code in JavaScript3 — Prepares CRM data\n\n**Step 10**\n✅ TRUE: Google Sheets — Logs hot lead to CRM\n\n**Step 11**\n❌ FALSE: OpenAI2 — Writes cold lead nurture email\n\n**Step 12**\n❌ FALSE: Code in JavaScript2 — Cleans cold lead email\n\n**Step 13**\n❌ FALSE: Gmail2 — Sends nurture draft to cold lead\n\n**Step 14**\n❌ FALSE: Code in JavaScript4 — Prepares CRM data\n\n**Step 15**\n❌ FALSE: Google Sheets1 — Logs cold lead to CRM",
+        "content": "🎯 End-to-End Sales Pipeline Workflow\n\nReceives new leads via a form submission, uses AI to \nscore them as hot or cold, sends personalized outreach \nto hot leads and nurture emails to cold leads. \nLogs all to CRM automatically.\n\nNodes:\n**Step 1**\n📝 On Form Submission — Receives new lead via form\n\n**Step 2**\n🤖 OpenAI — Scores lead from 1-100 as Hot or Cold\n\n**Step 3**\n⚙️ Code in JavaScript — Cleans and structures lead data\n\n**Step 4**\n🔀 IF — Routes hot leads vs cold leads\n\n**Step 5**\n✅ TRUE: OpenAI1 — Writes personalized hot lead outreach\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans hot lead email\n\n**Step 7**\n✅ TRUE: Gmail — Sends outreach draft to hot lead\n\n**Step 8**\n✅ TRUE: Gmail1 — Sends urgent alert to sales rep\n\n**Step 9**\n✅ TRUE: Code in JavaScript3 — Prepares CRM data\n\n**Step 10**\n✅ TRUE: Google Sheets — Logs hot lead to CRM\n\n**Step 11**\n❌ FALSE: OpenAI2 — Writes cold lead nurture email\n\n**Step 12**\n❌ FALSE: Code in JavaScript2 — Cleans cold lead email\n\n**Step 13**\n❌ FALSE: Gmail2 — Sends nurture draft to cold lead\n\n**Step 14**\n❌ FALSE: Code in JavaScript4 — Prepares CRM data\n\n**Step 15**\n❌ FALSE: Google Sheets1 — Logs cold lead to CRM",
         "height": 960,
         "width": 496
       },
@@ -559,20 +542,64 @@
       "typeVersion": 1,
       "id": "b18a8052-92c6-4b5e-9aee-6e3f2b5223f7",
       "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "formTitle": "Sales Lead Form",
+        "formDescription": "Tell us about your business and we'll be in touch",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name"
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Company"
+            },
+            {
+              "fieldLabel": "Industry"
+            },
+            {
+              "fieldLabel": "Budget"
+            },
+            {
+              "fieldLabel": "Message",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1342ed14-15e6-4d4d-8a26-21acbb00e2bb",
+      "name": "On form submission",
+      "webhookId": "ecef039a-cb33-4f87-ac02-57043f3d32fe"
+    },
+    {
+      "parameters": {
+        "content": "FILL THIS INFO IN THE FORM  TO TEST FOR TRUE NODE\n\nName: James Wilson\n\nEmail: james@techcorp.com\n\nCompany: TechCorp Inc\n\nIndustry: Technology\n\nBudget: $10000\n\nMessage: We need to automate our entire sales process\n\n\nFILL THIS INFO IN THE FORM TO TEST FOR FALSE NODE\n\nName: Lisa Brown\n\nEmail: lisa@smallbiz.com\n\nCompany: Small Biz Co\n\nIndustry: Retail\n\nBudget: $300\n\nMessage: Just browsing and curious about automation",
+        "height": 528,
+        "width": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        -576
+      ],
+      "typeVersion": 1,
+      "id": "c193dff2-9936-4b4d-a2b9-b625d8abf3f2",
+      "name": "Sticky Note1"
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Message a model",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Message a model": {
       "main": [
         [
@@ -706,6 +733,17 @@
         [
           {
             "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
             "type": "main",
             "index": 0
           }
