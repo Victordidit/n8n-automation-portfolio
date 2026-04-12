@@ -2,23 +2,6 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "customer-support",
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "ddcc6007-1ea2-4489-8069-0bf323265218",
-      "name": "Webhook",
-      "webhookId": "ea082985-54d7-4b13-9a72-cd2b4b40e9cb"
-    },
-    {
-      "parameters": {
         "documentId": {
           "__rl": true,
           "value": "1Kaj7EPkup2RPDoMBtwELjZpvPr3pfsxiWC3NGWy3c1o",
@@ -52,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const knowledgeBase = $input.all();\nconst webhook = $('Webhook').first().json.body;\n\nconst customerEmail = webhook.email;\nconst issue = webhook.issue;\nconst ticketId = 'TKT-' + Date.now();\n\n// Try to find a matching solution\nlet matchedSolution = null;\nlet matchedTopic = null;\n\nfor (const item of knowledgeBase) {\n  const topic = item.json['Topic'].toLowerCase();\n  if (issue.toLowerCase().includes(topic.toLowerCase())) {\n    matchedSolution = item.json['Solution'];\n    matchedTopic = item.json['Topic'];\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    ticketId,\n    customerEmail,\n    issue,\n    matchedTopic,\n    matchedSolution,\n    hasMatch: matchedSolution !== null,\n  }\n}];"
+        "jsCode": "const knowledgeBase = $input.all();\nconst formData = $('On form submission').first().json;\n\nconst customerEmail = formData.Email;\nconst issue = formData.Issue;\nconst ticketId = 'TKT-' + Date.now();\n\n// Try to find a matching solution\nlet matchedSolution = null;\nlet matchedTopic = null;\n\nfor (const item of knowledgeBase) {\n  const topic = item.json['Topic'].toLowerCase();\n  if (issue.toLowerCase().includes(topic.toLowerCase())) {\n    matchedSolution = item.json['Solution'];\n    matchedTopic = item.json['Topic'];\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    ticketId,\n    customerEmail,\n    issue,\n    matchedTopic,\n    matchedSolution,\n    hasMatch: matchedSolution !== null,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -315,7 +298,7 @@
     },
     {
       "parameters": {
-        "content": "🤖 AI Customer Support Agent Workflow\n\nReceives support tickets via Webhook in real time, \nsearches a knowledge base for solutions, uses AI to \ngenerate replies and escalates to a human if unsolved.\n\nNodes:\n**Step 1**\n▶ Webhook — Receives customer support tickets instantly\n\n**Step 2**\n📊 Google Sheets — Reads knowledge base solutions\n\n**Step 3**\n⚙️ Code in JavaScript — Matches issue to knowledge base\n\n**Step 4**\n🤖 OpenAI — Generates AI powered support reply\n\n**Step 5**\n🔀 IF — Checks if AI resolved the issue\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans resolved ticket data\n\n**Step 7**\n📧 TRUE: Gmail — Sends resolution draft to customer\n\n**Step 8**\n⚙️ TRUE: Code in JavaScript2 — Prepares logging data\n\n**Step 9**\n📊 TRUE: Google Sheets1 — Logs resolved ticket\n\n**Step 10**\n❌ FALSE: Gmail1 — Escalates to human agent",
+        "content": "🤖 AI Customer Support Agent Workflow\n\nReceives support tickets via a form submission in real \ntime, searches a knowledge base for solutions, uses AI \nto generate replies and escalates to a human if unsolved.\n\nNodes:\n**Step 1**\n📝 On Form Submission — Receives customer support ticket via form\n\n**Step 2**\n📊 Google Sheets — Reads knowledge base solutions\n\n**Step 3**\n⚙️ Code in JavaScript — Matches issue to knowledge base\n\n**Step 4**\n🤖 OpenAI — Generates AI powered support reply\n\n**Step 5**\n🔀 IF — Checks if AI resolved the issue\n\n**Step 6**\n✅ TRUE: Code in JavaScript1 — Cleans resolved ticket data\n\n**Step 7**\n✅ TRUE: Gmail — Sends resolution draft to customer\n\n**Step 8**\n✅ TRUE: Code in JavaScript2 — Prepares logging data\n\n**Step 9**\n✅ TRUE: Google Sheets1 — Logs resolved ticket\n\n**Step 10**\n❌ FALSE: Gmail1 — Escalates to human agent",
         "height": 688,
         "width": 576
       },
@@ -327,20 +310,52 @@
       "typeVersion": 1,
       "id": "ebd5b97e-fa4b-4e92-a2e4-c61d08d1656a",
       "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "formTitle": "Customer Support Ticket",
+        "formDescription": "Submit your issue and our AI will respond instantly",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Issue",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        16,
+        0
+      ],
+      "id": "4bb5aa82-d883-4560-976b-6c96650e0c5f",
+      "name": "On form submission",
+      "webhookId": "c6e15d19-98db-48f0-af18-ccc1138374c7"
+    },
+    {
+      "parameters": {
+        "content": "Fill in the form for True Node\n\nEmail: customer@example.com\n\nIssue: I need help with a password reset\n\nFill in form for Falso Node\n\nEmail: confused@example.com\n\nIssue: My dashboard is showing completely wrong analytics and I cannot export my data",
+        "height": 288,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        16,
+        -304
+      ],
+      "typeVersion": 1,
+      "id": "330cdd04-78ec-46bc-bf62-4569ef2119f1",
+      "name": "Sticky Note1"
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Get row(s) in sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Get row(s) in sheet": {
       "main": [
         [
@@ -419,6 +434,17 @@
         [
           {
             "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
             "type": "main",
             "index": 0
           }
