@@ -1,6 +1,6 @@
 # 🤖 AI Customer Support Agent
 
-[**📂 View Workflow JSON**](./ai-customer-support-agent.md)
+[**📂 View Workflow JSON**](./ai-customer-support-agent.json)
 
 ### Overview
 This workflow serves as a 24/7 intelligent first responder for customer inquiries. It captures support tickets instantly via form submission, cross-references a private knowledge base, and attempts to resolve the issue using AI. If the AI cannot provide a high-confidence solution, the workflow automatically escalates the ticket to a human agent, ensuring no customer is left without an answer.
