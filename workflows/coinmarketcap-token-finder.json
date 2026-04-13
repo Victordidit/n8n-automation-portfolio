@@ -1,0 +1,762 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5bbaab90-6948-4a50-8d03-d9abc4df5164",
+              "name": "SOURCE",
+              "value": "=COINMARKET CAP",
+              "type": "string"
+            },
+            {
+              "id": "8f480896-f2b5-4fcb-adcc-960ea07d4e35",
+              "name": "TOKEN",
+              "value": "={{ $json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "18b88dc7-f8d2-4fb6-956d-fdf1c9d4c516",
+              "name": "TICKER",
+              "value": "={{ $json.data.symbol }}",
+              "type": "string"
+            },
+            {
+              "id": "949d51e7-1ea9-49f9-80b4-a80e219523e4",
+              "name": "SLUG",
+              "value": "={{ $json.data.slug }}",
+              "type": "string"
+            },
+            {
+              "id": "fb7cd85b-dc87-4b7b-a293-c916b4b80882",
+              "name": "data.id",
+              "value": "={{ $json.data.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        816
+      ],
+      "id": "f4c6de28-5ba6-447d-9dc7-6533e4a4c7a4",
+      "name": "CLEAN CMC FIELDS",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "include": "allOtherFields",
+        "options": {
+          "destinationFieldName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        816
+      ],
+      "id": "05bdafec-4d19-4166-a05c-78fb579257e2",
+      "name": "Split Out",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2080,
+        704
+      ],
+      "id": "09b5550d-bb61-4a4b-b0cb-29f1c80c5bf7",
+      "name": "CMC SPLIT IN BATCHES",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🧩 Random CMC Listing Page Generator (sandbox-safe for n8n)\n// Includes sort direction + pseudo page calculation\n\n// --- CONFIG ---\nconst baseURL = \"https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest\";\nconst maxStart = 5000; // max offset\nconst limitOptions = [50, 100, 200];\nconst sortOptions = [\n  \"market_cap\",\n  \"market_cap_strict\",\n  \"name\",\n  \"symbol\",\n  \"date_added\",\n  \"price\",\n  \"circulating_supply\",\n  \"total_supply\",\n  \"max_supply\",\n  \"num_market_pairs\",\n  \"market_cap_by_total_supply_strict\",\n  \"volume_24h\",\n  \"volume_7d\",\n  \"volume_30d\",\n  \"percent_change_1h\",\n  \"percent_change_24h\",\n  \"percent_change_7d\"\n];\nconst sortDirs = [\"asc\", \"desc\"];\n\n// --- HELPER ---\nfunction randomChoice(arr) {\n  return arr[Math.floor(Math.random() * arr.length)];\n}\nfunction toQuery(params) {\n  return Object.entries(params)\n    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)\n    .join(\"&\");\n}\n\n// --- RANDOMIZE ---\nconst limit = randomChoice(limitOptions);\nconst start = Math.floor(Math.random() * maxStart) + 1;\nconst sort = randomChoice(sortOptions);\nconst sort_dir = randomChoice(sortDirs);\n\n// --- COMPOSE ---\nconst params = { start, limit, sort, sort_dir };\nconst query = toQuery(params);\nconst fullURL = `${baseURL}?${query}`;\nconst page = Math.ceil(start / limit);\n\n// --- OUTPUT ---\nreturn [\n  {\n    json: {\n      description: \"Randomized CoinMarketCap Listings URL\",\n      fullURL,\n      params: { ...params, page }\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        816
+      ],
+      "id": "f2136040-8c79-4eb6-8046-f19a7d1b6d57",
+      "name": "Generate Random Page",
+      "executeOnce": false,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        0
+      ],
+      "id": "8f854f53-e1cc-4eee-80a4-a21b036c4a9e",
+      "name": "No Operation, do nothing3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2736,
+        144
+      ],
+      "id": "631b2a2e-2889-4a6c-8ae9-47009bad2054",
+      "name": "ADD TO CMC",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "=https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?id={{ $json.data.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-CMC_PRO_API_KEY",
+              "value": "4bb6d83515ca4a52a887c1f37f014d63"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2304,
+        704
+      ],
+      "id": "08d0a872-b36d-43fe-a450-1a01d6c70e63",
+      "name": "Get Token Details From CMC",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "01c31061-2ae6-48b5-adc4-05424cf3e1db",
+              "name": "TOKEN",
+              "value": "={{ $json.data[Object.keys($json.data)[0]].name.replace(/\\n/g, '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "a38788fe-5be9-42d4-b37a-2ea898cdb2c1",
+              "name": "TICKER",
+              "value": "={{ $json.data[Object.keys($json.data)[0]].symbol.replace(/\\n/g, '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "904d3347-a60c-4553-8519-cd9a41253fef",
+              "name": "WEBSITE",
+              "value": "={{$json.data[Object.keys($json.data)[0]].urls.website[0].trim()}}",
+              "type": "array"
+            },
+            {
+              "id": "704e60c9-97a6-4605-86d3-ba8a7ae03218",
+              "name": "SOURCE",
+              "value": "COINMARKETCAP",
+              "type": "string"
+            },
+            {
+              "id": "df38721a-812a-4c45-8dc4-8709117ab928",
+              "name": "data[\"1\"].urls.twitter",
+              "value": "={{ $json.data[\"1\"].urls.twitter }}",
+              "type": "array"
+            },
+            {
+              "id": "fe374601-118f-4b52-a99e-e44979670c14",
+              "name": "data[\"1\"].urls.facebook",
+              "value": "={{ $json.data[\"1\"].urls.facebook }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {
+          "ignoreConversionErrors": true
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2496,
+        704
+      ],
+      "id": "b2e3233e-5264-4566-8267-093353ae1575",
+      "name": "EXTRACT WEBSITE",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e2166526-866a-4d67-a61c-18853694b10c",
+              "name": "WEBSITE",
+              "value": "={{ \n  (() => {\n    let w = $json[\"WEBSITE\"];\n    if (!w) return \"\";\n    // Try to parse if it’s a JSON-like string\n    if (typeof w === \"string\" && w.startsWith(\"[\")) {\n      try { w = JSON.parse(w); } catch(e) {}\n    }\n    // If array, take first element\n    if (Array.isArray(w)) w = w[0];\n    // Force https\n    return w.replace(/^http:\\/\\//, \"https://\");\n  })()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2768,
+        704
+      ],
+      "id": "82382d7e-6e91-4da6-83fe-ecde102787b3",
+      "name": "CLEAN WEBSITE",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        704
+      ],
+      "id": "083ea4d7-7e94-473b-b0ac-ad91235342c4",
+      "name": "Wait 1 Min",
+      "webhookId": "5929fc58-31cf-4460-94b5-8d55a36b032b"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fd8caaf1-cbb7-410e-8263-097349f3e400",
+              "name": "TIMESTAMP",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "5d0f01df-9f9c-4911-9b2b-11d588497c7a",
+              "name": "BATCH NUMBER",
+              "value": "={{ $runIndex + 1 }}",
+              "type": "string"
+            },
+            {
+              "id": "c71ea4a6-fe97-451c-9bef-e24aeceec1b5",
+              "name": "DELAY SECONDS",
+              "value": "={{ $runIndex + 1 }}",
+              "type": "string"
+            },
+            {
+              "id": "a2bcc611-c886-4f7c-bb89-e9b8938fc3af",
+              "name": "TOKENS PROCESSED",
+              "value": "={{ $items(\"Get Token Details From CMC\").length }}",
+              "type": "string"
+            },
+            {
+              "id": "95ee3f23-d07f-413c-88ad-47e11269d0d5",
+              "name": "SOURCE",
+              "value": "COINMARKETCAP",
+              "type": "string"
+            },
+            {
+              "id": "9f1310e0-cd03-4c50-bfff-902c504c3456",
+              "name": "WEBSITE",
+              "value": "={{ $('CLEAN WEBSITE').item.json.WEBSITE }}",
+              "type": "string"
+            },
+            {
+              "id": "2c952ab6-bd4f-471d-b843-9dc51658d795",
+              "name": "TOKEN",
+              "value": "={{ $('CLEAN WEBSITE').item.json.TOKEN }}",
+              "type": "string"
+            },
+            {
+              "id": "1c35c9fb-1552-4055-b5a7-e1182633e225",
+              "name": "TICKER",
+              "value": "={{ $('CLEAN WEBSITE').item.json.TICKER }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3360,
+        800
+      ],
+      "id": "c84f9995-7fd6-4334-acc2-47121957a860",
+      "name": "Clean up Output",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items (rows) from the node named \"if\"\nconst allRows = $items(\"DATA\").map(item => item.json);\n\n// You can now inspect or return them\nreturn allRows.map((row, index) => ({\n  json: {\n    index: index + 1,\n    ...row,\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        144
+      ],
+      "id": "9b2c506b-f6a0-4ce0-b390-6381944b2fa2",
+      "name": "CMC Token DATA",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-CMC_PRO_API_KEY",
+              "value": "4bb6d83515ca4a52a887c1f37f014d63"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 3
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1296,
+        816
+      ],
+      "id": "e6d30240-5711-4337-9f3c-5ba1a844eb43",
+      "name": "Get 100 Tokens From CMC",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "content": "## 📈 COINMARKETCAP TOKEN FINDER\n\n## (NO-COST API)\n\n## OVERVIEW\n\nThis workflow fetches newly listed and existing crypto tokens from CoinMarketCap,\nprocesses and organizes the data, and stores key details such as the token name, ticker, and official website.\n\n## HOW TO SET UP\n\n1. Generate a free CoinMarketCap API key\n2. Insert your API key into the HTTP Request nodes\n3. Link your preferred database or spreadsheet for storage\n4. Turn on the workflow and let it operate automatically\n",
+        "height": 1152,
+        "width": 608
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "f3dfe083-d4ff-4d46-893c-dc96a9c0da70",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function pickWebsite(v) {\n  if (!v) return null;\n\n  if (Array.isArray(v)) {\n    v = v.find(x => typeof x === 'string' && x.trim()) || null;\n  }\n\n  if (typeof v === 'string') {\n    let url = v.trim();\n\n    // Handle stringified arrays: [\"http://...\"]\n    if (url.startsWith('[') && url.endsWith(']')) {\n      try {\n        const parsed = JSON.parse(url);\n        if (Array.isArray(parsed)) url = parsed[0];\n      } catch {}\n    }\n\n    // Add protocol if missing\n    if (!/^https?:\\/\\//i.test(url)) url = 'https://' + url;\n\n    // Force HTTPS\n    url = url.replace(/^http:\\/\\//i, 'https://');\n\n    // Remove stray brackets/quotes\n    url = url.replace(/[\"'\\[\\]]/g, '');\n\n    return url;\n  }\n\n  return null;\n}\n\nconst j = $json;\n\n// Match your real field names\nconst out = {\n  token: j.TOKEN || j.name || null,\n  ticker: (j.TICKER || j.symbol || '').toString().toUpperCase(),\n  source: j.SOURCE || 'COINGECKO',\n  website: pickWebsite(j.WEBSITE || j.links?.homepage || j.homepage || null),\n  timestamp: new Date().toISOString()\n};\n\nif (!out.website) return null;  // skip invalid\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        144
+      ],
+      "id": "8ea4a3b0-2952-4e0d-91bc-fd708312273e",
+      "name": "DATA",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "content": "## STEP 1: \nThis step randomly selects different pages from CoinMarketCap.\n\n\n",
+        "height": 368,
+        "width": 272,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        864,
+        592
+      ],
+      "typeVersion": 1,
+      "id": "85c147cc-ca51-4e94-b152-a71302fa8fec",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 2: \nThis step talks to CoinMarketCap’s API and asks for a list of tokens.\n\nThis is where you add your own CoinMarketCap API key.\n\n\n",
+        "height": 368,
+        "width": 288,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1184,
+        592
+      ],
+      "typeVersion": 1,
+      "id": "64a07b4a-ab9b-48f8-922b-ca3e539ef98d",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 3: \nCoinMarketCap sends a lot of information in large bundles.\n\nThese steps break the data into individual tokens\nand keep only the important fields like name, symbol, and ID.\n\n\n",
+        "height": 368,
+        "width": 400,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1520,
+        592
+      ],
+      "typeVersion": 1,
+      "id": "ba8294d9-b8f7-4f9c-923e-f6ab48810efd",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 4: \nThis step fetches more details about each token; 10/batch, such as its official website and social links.\n\n\n\n",
+        "height": 496,
+        "width": 368,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2256,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "5c81d427-cbc0-4afb-b3d8-ecd11c688d8d",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 5: \nToken websites are often messy or broken.\n\nThis step cleans the website field by:\n• Picking the first valid link\n• Forcing HTTPS\n• Removing broken or empty values\n\nOnly clean, usable websites move forward.\n\n\n\n",
+        "height": 496,
+        "width": 448,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2704,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "f8c234a7-9e35-418d-9d3c-1281bd5baf17",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 6: \nThis step prepares the final output in a simple format.\n\nEach token now has:\n• Name\n• Symbol\n• Website\n• Source\n• Timestamp\n\nInvalid entries are skipped so only clean data\nis sent to storage or the next workflow.\n\n\n\n",
+        "height": 496,
+        "width": 352,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3216,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "eff48617-357d-4175-8a61-9e5f63dfe726",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## STEP 7: \nThis step saves the cleaned token data into a database (NOCODB in this instance).\n\nYou can replace this with any storage you prefer,\nsuch as Google Sheets, Airtable, PostgreSQL, or Webhooks.\n\n\n\n\n\n",
+        "height": 560,
+        "width": 896,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2256,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "92780125-0075-46db-9bc5-8ad1ef84fecb",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 2,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        816
+      ],
+      "id": "ae15bb88-f2e2-4f6f-956c-b1d9c54f444e",
+      "name": "Every 2 Days At 9AM"
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "operation": "create",
+        "workspaceId": "w3iksuje",
+        "projectId": "pppc865egq3z6ra",
+        "table": "mgx7rb82q2mgxe8",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "FIRST_NAME",
+              "fieldValue": "={{ $json.token }}"
+            },
+            {
+              "fieldName": "WEBSITE",
+              "fieldValue": "={{ $json.website }}"
+            },
+            {
+              "fieldName": "TICKER",
+              "fieldValue": "={{ $json.ticker }}"
+            },
+            {
+              "fieldName": "SOURCE",
+              "fieldValue": "={{ $json.source }}"
+            },
+            {
+              "fieldName": "TOKEN",
+              "fieldValue": "={{ $json.token }}"
+            },
+            {
+              "fieldName": "DATE_ADDED",
+              "fieldValue": "={{ new Date().toISOString().split('T')[0] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        2960,
+        192
+      ],
+      "id": "8e975f78-21c4-4f29-b46e-4dcadc4eb880",
+      "name": "ADD TO CMC Sheet",
+      "retryOnFail": true,
+      "executeOnce": true,
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "JbIOVqACegEVJh4J",
+          "name": "NocoDB Token account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "CLEAN CMC FIELDS": {
+      "main": [
+        [
+          {
+            "node": "CMC SPLIT IN BATCHES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "CLEAN CMC FIELDS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CMC SPLIT IN BATCHES": {
+      "main": [
+        [
+          {
+            "node": "DATA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Token Details From CMC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Random Page": {
+      "main": [
+        [
+          {
+            "node": "Get 100 Tokens From CMC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ADD TO CMC": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ADD TO CMC Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token Details From CMC": {
+      "main": [
+        [
+          {
+            "node": "EXTRACT WEBSITE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EXTRACT WEBSITE": {
+      "main": [
+        [
+          {
+            "node": "CLEAN WEBSITE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CLEAN WEBSITE": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 Min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 Min": {
+      "main": [
+        [
+          {
+            "node": "Clean up Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up Output": {
+      "main": [
+        [
+          {
+            "node": "CMC SPLIT IN BATCHES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CMC Token DATA": {
+      "main": [
+        [
+          {
+            "node": "ADD TO CMC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get 100 Tokens From CMC": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DATA": {
+      "main": [
+        [
+          {
+            "node": "CMC Token DATA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 2 Days At 9AM": {
+      "main": [
+        [
+          {
+            "node": "Generate Random Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ADD TO CMC Sheet": {
+      "main": [
+        [
+          {
+            "node": "ADD TO CMC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
