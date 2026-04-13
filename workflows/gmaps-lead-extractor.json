@@ -1,0 +1,710 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b6b284eb-70e0-466b-b6b0-45873c192701",
+        "options": {}
+      },
+      "id": "68e00246-8a74-410e-8ddd-efee1229bb67",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        512
+      ],
+      "webhookId": "b6b284eb-70e0-466b-b6b0-45873c192701"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "api_key"
+            },
+            {
+              "name": "engine",
+              "value": "google_maps"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.body.search_query }}"
+            },
+            {
+              "name": "num",
+              "value": "22"
+            },
+            {
+              "name": "hl",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "3977910b-c4b1-4d35-b833-bde02a294738",
+      "name": "Search Google Maps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1120,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process Google Maps results\nconst results = [];\nconst places = $input.first().json.local_results || [];\n\nfor (const place of places) {\n  // Parse address\n  const address = place.address || '';\n  const addressParts = address.split(', ');\n  \n  // Handle service_options properly - it's an object, not array\n  let serviceOptions = '';\n  if (place.service_options && typeof place.service_options === 'object') {\n    serviceOptions = Object.keys(place.service_options)\n      .filter(key => place.service_options[key])\n      .join(', ');\n  }\n  \n  results.push({\n    business_name: place.title || '',\n    business_type: place.type || '',\n    title: place.type || '',\n    description: place.user_review || place.snippet || place.editorial_summary || '',\n    full_address: address,\n    street: addressParts[0] || '',\n    city: addressParts[1] || '',\n    state: addressParts[2] || '',\n    country: addressParts[addressParts.length - 1] || '',\n    phone: place.phone || '',\n    website: place.website || '',\n    email: '',\n    rating: place.rating || '',\n    social_media: '',\n    search_query: 'dentist near dwarka new delhi',\n    date_scraped: new Date().toISOString().split('T')[0],\n    price_range: place.price || '',\n    service_options: serviceOptions,\n    hours: place.hours || '',\n    reviews: place.reviews || 0\n  });\n}\n\nreturn results.map(item => ({ json: item }));"
+      },
+      "id": "e3f3e966-0b12-4f03-97d0-98e0f07c6fbd",
+      "name": "Process Maps Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "counter_init",
+              "name": "counter",
+              "value": 0,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9dd500e0-707a-49bd-aab5-4fa13e4bd2bf",
+      "name": "Initialize Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -672,
+        512
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "fab71c85-196f-4d81-90a3-9219c8fdf238",
+      "name": "Wait Before Website Scraping",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        512
+      ],
+      "webhookId": "d22c209b-5ca3-42a0-9979-e4d3c629e9a7",
+      "notesInFlow": false,
+      "alwaysOutputData": true,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "website_exists",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1938901e-a909-4139-8a8f-a46b2fed5a27",
+      "name": "Check Website Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.website || '';\nconst s = raw.toString().trim();\n\n// remove trailing slashes and leading protocol\nlet cleaned = s.replace(/^https?:\\/\\//i, '').replace(/\\/+$/,'').trim();\n\n// remove accidental spaces\ncleaned = cleaned.replace(/\\s+/g,'');\n\n// if after cleaning nothing remains, return empty\nif (!cleaned) {\n  return [{ json: { ...$json, cleaned_website: '' } }];\n}\n\n// if contains invalid characters (no dot) treat as empty\nif (!/\\./.test(cleaned)) {\n  return [{ json: { ...$json, cleaned_website: '' } }];\n}\n\n// final canonical https:// + cleaned\nreturn [{ json: { ...$json, cleaned_website: 'https://' + cleaned } }];"
+      },
+      "id": "2491d0f9-c3dd-431f-b271-85f0516b0203",
+      "name": "Clean Website",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cleaned_exists",
+              "leftValue": "={{ $json.cleaned_website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "097a0e92-c618-4508-9dfa-0fb6ea446116",
+      "name": "Has Clean Website",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        208,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.cleaned_website }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 15000
+        }
+      },
+      "id": "85c6a517-2baa-4c86-8b75-20b7814d956f",
+      "name": "Scrape Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        0,
+        0
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "2a313213-78a5-4087-abb3-ab4fb3773304",
+      "name": "Wait After Scraping",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "webhookId": "e5e79c0d-79fc-488c-b548-a7f688585370"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced extraction without relying on Gemini API\nconst websiteData = ($node[\"Scrape Website\"].json.data || '').toString();\nconst originalData = $node[\"Clean Website\"].json;\n\n// Initialize extracted data\nlet extractedData = {\n  emails: [],\n  description: '',\n  social_media: [],\n  street: '',\n  city: '',\n  state: '',\n  country: '',\n  services: '',\n  business_hours: ''\n};\n\nif (websiteData && websiteData.length > 0) {\n  // Extract emails using regex\n  const emailRegex = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g;\n  const emailMatches = websiteData.match(emailRegex) || [];\n  extractedData.emails = [...new Set(emailMatches.filter(email => \n    !email.includes('example.com') && \n    !email.includes('test.com') &&\n    !email.includes('placeholder')\n  ))];\n\n  // Extract description from meta tags\n  const metaDescRegex = /<meta[^>]*name=[\"']description[\"'][^>]*content=[\"']([^\"']*)[\"'][^>]*>/i;\n  const metaDescMatch = websiteData.match(metaDescRegex);\n  if (metaDescMatch && metaDescMatch[1]) {\n    extractedData.description = metaDescMatch[1].trim();\n  }\n\n  // Try to extract title if no description\n  if (!extractedData.description) {\n    const titleRegex = /<title[^>]*>([^<]+)<\\/title>/i;\n    const titleMatch = websiteData.match(titleRegex);\n    if (titleMatch && titleMatch[1]) {\n      extractedData.description = titleMatch[1].trim();\n    }\n  }\n\n  // Extract social media links\n  const socialRegex = /(?:https?:\\/\\/)(?:www\\.)?(facebook|twitter|instagram|linkedin|youtube)\\.com\\/[^\\s\"'<>]+/gi;\n  const socialMatches = websiteData.match(socialRegex) || [];\n  extractedData.social_media = [...new Set(socialMatches)];\n\n  // Extract phone numbers\n  const phoneRegex = /(?:\\+\\d{1,3}[-\\s]?)?(?:\\(?\\d{3}\\)?[-\\s]?)?\\d{3}[-\\s]?\\d{4}/g;\n  const phoneMatches = websiteData.match(phoneRegex) || [];\n  const validPhones = phoneMatches.filter(phone => phone.length >= 10);\n\n  // Extract address information from common patterns\n  const addressRegex = /(?:address|location|visit us)[^\\n]*([^\\n]{20,100})/gi;\n  const addressMatches = websiteData.match(addressRegex) || [];\n  if (addressMatches.length > 0) {\n    const addressText = addressMatches[0].replace(/address|location|visit us/gi, '').trim();\n    const parts = addressText.split(/[,\\n]/);\n    if (parts.length > 0) extractedData.street = parts[0]?.trim() || '';\n    if (parts.length > 1) extractedData.city = parts[1]?.trim() || '';\n    if (parts.length > 2) extractedData.state = parts[2]?.trim() || '';\n  }\n\n  // Extract business hours\n  const hoursRegex = /(?:hours|open|timing)[^\\n]*([^\\n]{10,80})/gi;\n  const hoursMatches = websiteData.match(hoursRegex) || [];\n  if (hoursMatches.length > 0) {\n    extractedData.business_hours = hoursMatches[0].replace(/hours|open|timing/gi, '').trim();\n  }\n\n  // Extract services\n  const servicesRegex = /(?:services|we offer|specializing)[^\\n]*([^\\n]{20,150})/gi;\n  const serviceMatches = websiteData.match(servicesRegex) || [];\n  if (serviceMatches.length > 0) {\n    extractedData.services = serviceMatches[0].replace(/services|we offer|specializing/gi, '').trim();\n  }\n}\n\n// Merge with original data\nconst finalData = {\n  business_name: originalData.business_name || '',\n  business_type: originalData.business_type || '',\n  title: originalData.title || '',\n  description: extractedData.description || originalData.description || '',\n  street: extractedData.street || originalData.street || '',\n  city: extractedData.city || originalData.city || '',\n  state: extractedData.state || originalData.state || '',\n  country: extractedData.country || originalData.country || '',\n  phone: originalData.phone || '',\n  website: originalData.website || '',\n  email: extractedData.emails.join(', ') || '',\n  rating: originalData.rating || '',\n  social_media: extractedData.social_media.join(', ') || '',\n  search_query: originalData.search_query || '',\n  date_scraped: originalData.date_scraped || new Date().toISOString().split('T')[0],\n  services: extractedData.services || '',\n  business_hours: extractedData.business_hours || originalData.hours || '',\n  price_range: originalData.price_range || '',\n  reviews: originalData.reviews || 0,\n  data_source: 'ENHANCED_REGEX_EXTRACTED'\n};\n\nreturn { json: finalData };"
+      },
+      "id": "40018267-24e7-4b78-8c00-0e0dcc8e0273",
+      "name": "Enhanced Data Extraction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no_website_marker",
+              "name": "data_source",
+              "value": "NO_WEBSITE",
+              "type": "string"
+            },
+            {
+              "id": "empty_email",
+              "name": "email",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "empty_social",
+              "name": "social_media",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "empty_services",
+              "name": "services",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "empty_hours",
+              "name": "business_hours",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d78b5a86-45f5-4b98-9f43-0c8149fb155c",
+      "name": "Set No Website Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        448,
+        352
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d39a43d7-3919-4b5f-b1d7-6c902bcea5e0",
+      "name": "Merge Data Streams",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        672,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1qH8Kr5J-f6mpiF3y0eJksTF3GbCdRYY8Eoj-95FoMxQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1tCXbvhf5bfWzfWUzC2PLa6e74Va94Ldgoox5cAmEiOU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "business_name": "={{ $json.business_name }}",
+            "business_type": "={{ $json.business_type }}",
+            "title": "={{ $json.title }}",
+            "description": "={{ $json.description }}",
+            "street": "={{ $json.street }}",
+            "city": "={{ $json.city }}",
+            "country": "={{ $json.country }}",
+            "state": "={{ $json.state }}",
+            "website": "={{ $json.website }}",
+            "email": "={{ $json.email }}",
+            "rating": "={{ $json.rating }}",
+            "social_media": "={{ $json.social_media }}",
+            "date_scraped": "={{ $json.date_scraped }}",
+            " price_range": "={{ $json.price_range }}",
+            "reviews": "={{ $json.reviews }}",
+            "services": "={{ $json.services }}",
+            "phone": "={{ $json.phone }}"
+          },
+          "matchingColumns": [
+            "business_name"
+          ],
+          "schema": [
+            {
+              "id": "business_name",
+              "displayName": "business_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "business_type",
+              "displayName": "business_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "street",
+              "displayName": "street",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rating",
+              "displayName": "rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "social_media",
+              "displayName": "social_media",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "search_query",
+              "displayName": "search_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date_scraped",
+              "displayName": "date_scraped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "services",
+              "displayName": "services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "business_hours",
+              "displayName": "business_hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": " price_range",
+              "displayName": " price_range",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reviews",
+              "displayName": "reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "data_source",
+              "displayName": "data_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5738552a-64ef-4252-b787-506927eb2ea3",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🏗️ Workflow Structure\n\n**Step 1: The Input**\n📩 **Webhook** — Accepts a `search_query` (e.g., \"Dentists in New York\") to kick off the automation via API or external trigger.\n\n**Step 2: Maps Discovery**\n🔍 **Search Google Maps (SerpApi)** — Queries Google Maps for up to 22 local businesses, retrieving titles, ratings, phone numbers, and website URLs.\n💻 **Process Maps Data** — Normalizes the raw API response into a clean, structured list.\n\n**Step 3: Intelligence & Scraping**\n🌐 **Clean Website & Check Exists** — Filters out businesses without websites and formats URLs for safe scraping.\n🕷️ **Scrape Website (HTTP Request)** — Visits the homepage of each business to pull raw HTML.\n🧠 **Enhanced Data Extraction** — A custom JavaScript engine using Regex to extract:\n* **Direct Emails:** Bypasses \"Contact Us\" forms to find valid email addresses.\n* **Social Links:** Identifies Facebook, Instagram, and LinkedIn profiles.\n* **Metadata:** Grabs business descriptions and service offerings from meta tags.\n\n**Step 4: The Archive**\n💾 **Save to Google Sheets** — Automatically appends or updates the business data in a master spreadsheet, mapping columns for `Business Name`, `Email`, `Social Media`, `Rating`, and more.",
+        "height": 624,
+        "width": 528
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1136,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "8dccdcfd-212c-4334-b871-d18d7304247f",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search Google Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Google Maps": {
+      "main": [
+        [
+          {
+            "node": "Process Maps Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Maps Data": {
+      "main": [
+        [
+          {
+            "node": "Initialize Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Counter": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Website Scraping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Website Scraping": {
+      "main": [
+        [
+          {
+            "node": "Check Website Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Website Exists": {
+      "main": [
+        [
+          {
+            "node": "Clean Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set No Website Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Website": {
+      "main": [
+        [
+          {
+            "node": "Has Clean Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Clean Website": {
+      "main": [
+        [
+          {
+            "node": "Scrape Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set No Website Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Website": {
+      "main": [
+        [
+          {
+            "node": "Wait After Scraping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait After Scraping": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Data Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Data Extraction": {
+      "main": [
+        [
+          {
+            "node": "Merge Data Streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set No Website Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Data Streams",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Data Streams": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "0d1d94514776d160baf9a2a9bd715a3a1f1dda4d17836a256b22c074dedb9851"
+  }
+}
