@@ -28,6 +28,6 @@ A collection of 12 professional AI-driven workflows designed to bridge the gap b
 12. [🔍 AI Competitor Intelligence](./workflows/ai-competitor-intelligence-monitor.md)
 13. [📊 Daily Lead Generation Report](./workflows/daily-lead-report.md)
 14. [📍 Google Maps Lead Extractor](./workflows/gmaps-lead-extractor.md)
-15. [🕷️ Website Scraping & Data Enrichment](./workflows/website-scraping-enrichment.md)
+15. [🕷️ CoinMarketCap Token Finder](./workflows/coinmarketcap-token-finder.md)
 ---
 *All workflows are branded under the **Victordidit** "V" standard.*
